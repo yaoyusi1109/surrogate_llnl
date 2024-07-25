@@ -61,33 +61,53 @@ dgp2 <- predict(dgp2, xtest, lite = TRUE)
 dgp2_rmse <- round(rmse(ytest, dgp2$mean), 3)
 dgp2_crps <- round(crps(ytest, dgp2$mean, dgp2$s2), 3)
 
-pred <- data.frame(y = ytest,
-                   gpmean = gp$mean,
-                   gps2 = gp$s2,
-                   gpsepmean = gpsep$mean,
-                   gpseps2 = gpsep$s2,
-                   dgp8mean = dgp8$mean,
-                   dgp8s2 = dgp8$s2,
-                   dgp4mean = dgp4$mean,
-                   dgp4s2 = dgp4$s2,
-                   dgp2mean = dgp2$mean,
-                   dgp2s2 = dgp2$s2)
+# DGP cheat (initialize at the 4 known latent quantities)
+w_0 <- cbind(xtrain[, 21], rowSums(cos(xtrain[, 1:20])), xtrain[, 22], 
+             exp(xtrain[, 1]))
+dgp_cheat <- fit_two_layer(xtrain, ytrain, D = 4, w_0 = w_0, nmcmc = 10000, 
+                           true_g = 1e-6)
+dgp_cheat <- continue(dgp_cheat, 10000)
+dgp_cheat <- continue(dgp_cheat, 10000)
+dgp_cheat <- continue(dgp_cheat, 10000)
+plot(dgp_cheat$ll, type = "l")
+dgp_cheat <- trim(dgp_cheat, 20000, 20)
+dgp_cheat <- predict(dgp_cheat, xtest, lite = TRUE)
+dgp_cheat_rmse <- round(rmse(ytest, dgp_cheat$mean), 3)
+dgp_cheat_crps <- round(crps(ytest, dgp_cheat$mean, dgp_cheat$s2), 3)
+
+#pred <- data.frame(y = ytest,
+#                   gpmean = gp$mean,
+#                   gps2 = gp$s2,
+#                   gpsepmean = gpsep$mean,
+#                   gpseps2 = gpsep$s2,
+#                   dgp8mean = dgp8$mean,
+#                   dgp8s2 = dgp8$s2,
+#                   dgp4mean = dgp4$mean,
+#                   dgp4s2 = dgp4$s2,
+#                   dgp2mean = dgp2$mean,
+#                   dgp2s2 = dgp2$s2)
+pred <- read.csv("pred.csv")
+pred$dgpcheatmean <- dgp_cheat$mean
+pred$dgpcheats2 <- dgp_cheat$s2
 write.csv(pred, "pred.csv", row.names = FALSE)
 
-results <- data.frame(model = c("gp", "gpsep", "dgp8", "dgp4", "dgp2"),
-                      rmse = c(gp_rmse, gpsep_rmse, dgp8_rmse, dgp4_rmse, dgp2_rmse),
-                      crps = c(gp_crps, gpsep_crps, dgp8_crps, dgp4_crps, dgp2_crps))
+#results <- data.frame(model = c("gp", "gpsep", "dgp8", "dgp4", "dgp2"),
+#                      rmse = c(gp_rmse, gpsep_rmse, dgp8_rmse, dgp4_rmse, dgp2_rmse),
+#                      crps = c(gp_crps, gpsep_crps, dgp8_crps, dgp4_crps, dgp2_crps))
+results <- read.csv("results.csv")
+results <- rbind(results, c("dgpcheat", dgp_cheat_rmse, dgp_cheat_crps))
 write.csv(results, "results.csv", row.names = FALSE)
 
 par(mfrow = c(2, 3))
-plot(ytest, gp$mean, main = "Isotropic GP", xlab = "Actual", ylab = "Predicted")
+plot(ytest, pred$gpmean, main = "Isotropic GP", xlab = "Actual", ylab = "Predicted")
 abline(0, 1, col = 2)
-plot(ytest, gpsep$mean, main = "Separable GP", xlab = "Actual", ylab = "Predicted")
+plot(ytest, pred$gpsepmean, main = "Separable GP", xlab = "Actual", ylab = "Predicted")
 abline(0, 1, col = 2)
-plot(0, pch = NA, xaxt = "n", yaxt = "n", xlab = "", ylab = "", bty = "n")
-plot(ytest, dgp8$mean, main = "DGP 8 nodes", xlab = "Actual", ylab = "Predicted")
+plot(ytest, pred$dgp8mean, main = "DGP 8 nodes", xlab = "Actual", ylab = "Predicted")
 abline(0, 1, col = 2)
-plot(ytest, dgp4$mean, main = "DGP 4 nodes", xlab = "Actual", ylab = "Predicted")
+plot(ytest, pred$dgp4mean, main = "DGP 4 nodes", xlab = "Actual", ylab = "Predicted")
 abline(0, 1, col = 2)
-plot(ytest, dgp2$mean, main = "DGP 2 nodes", xlab = "Actual", ylab = "Predicted")
+plot(ytest, pred$dgp2mean, main = "DGP 2 nodes", xlab = "Actual", ylab = "Predicted")
+abline(0, 1, col = 2)
+plot(ytest, pred$dgpcheatmean, main = "DGP 4 nodes (cheat)", xlab = "Actual", ylab = "Predicted")
 abline(0, 1, col = 2)
