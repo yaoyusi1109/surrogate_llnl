@@ -1,0 +1,70 @@
+---
+title: "Variable Section with (D)GPs"
+bibliography: ../ref.bib 
+output: pdf_document
+---
+
+# Previous works on variable selection for GPs
+
+Most works on variable selection with GPs use a linear mean and a separable covariance with the lengthscale in the numerator.  
+
+$$
+\mathbf{y} \sim \mathcal{N}\left(X\beta, \Sigma_x\right)
+\quad\textrm{where}\quad
+\begin{array}{rl}
+(X\beta)^{(i)} &= \sum_{d=1}^D x_{id}\beta_d \\
+\Sigma_x^{(ij)} &= \tau^2\left[\mathrm{exp}\left(-\sum_{d=1}^D \theta_d(x_{id} - x_{jd})^2\right) + g\mathbb{I}_{i=j}\right]
+\end{array}
+$$
+
+There is a closed-form MLE available for $\hat{\beta}$ and $\hat{\tau}^2$:
+
+$$
+\hat{\beta} = (X^\top \Sigma_x^{-1}X)^{-1} X^\top\Sigma_x^{-1} \mathbf{y}
+$$
+
+$$
+\hat{\tau}^2 = \frac{1}{n}(\mathbf{y} - X\hat{\beta})^\top \Sigma_x^{-1}(\mathbf{y} - X\hat{\beta})
+$$
+
+The lengthscales $\boldsymbol\theta = [\theta_1, ..., \theta_d]$ requires numerical optimization.
+
+In this framework, there are two avenues for "de-selecting" an input.
+
+1. A particular $x_d$ could be taken out of the mean term $X\beta$.  This is equivalent to $\beta_d = 0$.
+2. A particular $x_d$ could be taken out of the covariance term $\Sigma_n$.  This is equivalent to $\theta_d = 0$.
+
+**Important Citations:**
+
+* @linkletter2006variable: Places a mixture model prior on the lengthscale parameters with a point mass on zero.  Call the method "reference distribution variable selection."
+* @joseph2008blind: Perform variable selection only in the $X\beta$ mean term.  Call this "blind kriging."
+* @zhang2023indicator: Uses indicator functions to turn variables on/off.  If the indicator is zero, then the $\beta_i$ parameter in the $X\beta$ mean AND the $\theta_i$ parameter in the separable covariance are zero.  Note, to set $\theta$ equal to zero, we must put it in the numerator of the kernel.
+
+# Extending to DGPs
+
+In our typical DGP framework, we have
+
+$$
+\begin{array}{rl}
+\mathbf{y}&\sim\mathcal{N}\left(0, \Sigma_w\right) \\
+\mathbf{w}_p &\sim\mathcal{N}\left(0, \Sigma_x\right) \\
+&\quad p=1,\dots,P
+\end{array}
+\quad\textrm{where}\quad
+\begin{array}{rl}
+\Sigma_w^{(ij)} &= \tau^2\left[\mathrm{exp}\left(-\frac{1}{\theta_w} \sum_{p=1}^P(w_{ip} - w_{jp})^2\right) + g\mathbb{I}_{i=j}\right] \\
+\Sigma_x^{(ij)} &= \mathrm{exp}\left(-\frac{1}{\theta_x} \sum_{d=1}^D(x_{id} - x_{jd})^2\right)
+\end{array}
+$$
+
+![](diagrams/Slide1.png)
+
+
+*Note - need to update this indexing to be more intuitive.*
+
+In this original formulation, all dimensions of $X$ go to all dimensions of $W$.  There is no clear way to "de-select" a dimension of $X$.  If we wanted to draw inspiration from @linkletter2006variable, we could turn $\theta_x$ into separable lengthscales, and then turn some of them off (going to $\infty$ in the denominator is equivalent to 0 in the numerator).  I think this is a terrible idea in our setting, because we would have $D\times P$ many unique lengthscale parameters to estimate here.  Very messy for very little gain.  [Or perhaps we give each dimension of $X$ a unique lengthscale, but keep these the same for all nodes of $W$?.  This just seems counterintuitive to me.]
+
+Instead, I propose we embrace one-dimensional warpings.
+
+-------
+# References
