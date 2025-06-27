@@ -8,6 +8,11 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
 ```
 
+```{r}
+library(deepgp)
+library(mvtnorm)
+```
+
 # Previous works on variable selection for GPs
 
 Most works on variable selection with GPs use a linear mean and a separable covariance with the lengthscale in the numerator.  
@@ -108,9 +113,6 @@ Why is this so neat?  First, I have read [@zhang2004inconsistent] that in a one-
 To see this in action, let's create some random one-dimensional GP data and visualize the likelihood as a function of $\tau^2$ and $\theta$.
 
 ```{r, fig.width = 5, fig.height = 4}
-library(deepgp)
-library(mvtnorm)
-
 x <- seq(0, 1, length = 10)
 dx <- sq_dist(x)
 y <- drop(rmvnorm(1, sigma = 1*exp(-dx/0.1)))
@@ -208,10 +210,37 @@ Not much difference.  But things could go really poorly if $\theta$ is fixed too
 
 We want to be confident that fixing $\theta$ and estimating $\tau^2$ will give us the same flexibility in our monotonic warpings.  We need to be cautious of fixing $\theta$ too large.
 
+Let's investigate what our monowarp GP prior looks like for both of these situations - we want to make sure we have the same prior flexibility under the two different parameterizations.
+
+Let's vary $\tau^2$ and $\theta$ and see how they affect the draws from the monoGP prior.
+
 ```{r}
-
-
+x <- matrix(seq(0, 1, length = 100), ncol = 1)
+x_grid <- matrix(seq(0, 1, length = 50), ncol = 1)
+dx_grid <- sq_dist(x_grid)
+grid_index <- deepgp:::fo_approx_init(x_grid, x)
 ```
+
+```{r, fig.width = 10, fig.height = 3.5}
+r <- 15
+for (tau2 in c(0.01, 0.1, 1, 10)) {
+  par(mfrow = c(1, 4))
+  for (theta in c(0.01, 0.1, 1, 10)) {
+    w_grid <- t(rmvnorm(r, sigma = tau2*exp(-dx_grid/theta)))
+    w <- matrix(nrow = nrow(x), ncol = r)
+    for (i in 1:r) {
+      w[, i] <- deepgp:::monowarp_ref(x, x_grid, w_grid[, i], grid_index)
+      w[, i] <- (w[, i] - mean(w[, i]))
+    }
+    matplot(x, w, type = "l", main = paste0("tau2 = ", tau2, "\n theta = ", theta))
+  }
+}
+```
+
+What do we see?
+
+* For small $\tau^2$, warpings are mostly linear.  Within this first row, it takes a larger $\theta$ to get a
+
 
 
 
