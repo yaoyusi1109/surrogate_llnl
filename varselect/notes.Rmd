@@ -55,8 +55,8 @@ In our typical DGP framework, we have
 
 $$
 \begin{array}{rl}
-\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 K_{\theta_w}(W) + g\mathbb{I}\right) \\
-\mathbf{w}_p &\sim\mathrm{GP}\mathcal{N}\left(0,\; K_{\theta_x^p}(X) \right) \\
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w}(W) + g\mathbb{I})\right) \\
+\mathbf{w}_p &\sim\mathrm{GP}\left(0,\; K_{\theta_x^p}(X) \right) \\
 &\quad p=1,\dots,P
 \end{array}
 \quad\textrm{where}\quad
@@ -75,7 +75,7 @@ Instead, I propose we embrace one-dimensional warpings.  Originally, we proposed
 
 $$
 \begin{array}{rl}
-\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 K_{\theta_w^d}(W) + g\mathbb{I}\right) \\
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w^d}(W) + g\mathbb{I})\right) \\
 \mathbf{w}_d &\sim\mathrm{monoGP}\left(0,\; K_{\theta_x^d}(\mathbf{x}_d) \right) \quad d=1,\dots,D
 \end{array}
 $$
@@ -88,20 +88,20 @@ I have since developed a work-around to avoid separable lengthscales on the oute
 
 $$
 \begin{array}{rl}
-\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 K_{\theta_w}(W) + g\mathbb{I}\right) \\
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w}(W) + g\mathbb{I})\right) \\
 \mathbf{w}_d &\sim\mathrm{monoGP}\left(0,\; K_{\theta_x^d}(\mathbf{x}_d) \right) \quad d=1,\dots,D
 \end{array}
 $$
 
 ![](diagrams/Slide3.png)
 
-# Swapping $\tau^2$ and $\theta$
+# Swapping $\tau^2$ and $\theta$ - what happens to the prior?
 
 Notice, in the latent layer of the monowarp DGP, we have essentially fixed $\tau^2 = 1$ and allowed estimation of $\theta$.  Now we propose a SWAP.  Fix $\theta_x^d = 1$ for all $d=1,\dots,D$, but incorporate a $\tau^2_d$ parameter that may be estimated.  Our model is then:
 
 $$
 \begin{array}{rl}
-\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau_w^2 K_{\theta_w}(W) + g\mathbb{I}\right) \\
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau_w^2 (K_{\theta_w}(W) + g\mathbb{I})\right) \\
 \mathbf{w}_d &\sim\mathrm{monoGP}\left(0,\; \tau_{x_d}^2 K(\mathbf{x}_d) \right) \quad d=1,\dots,D
 \end{array}
 $$
@@ -204,7 +204,7 @@ lines(x_new, p2$mean + 2*sqrt(p2$s2), lty = 2)
 points(x, y, pch = 20, col = 2)
 ```
 
-Not much difference.  But things could go really poorly if $\theta$ is fixed too large.
+Posterior mean is essentially the same, but the larger $\tau^2$ value results in wider UQ intervals.  Things could go really poorly if $\theta$ is fixed too large or $\tau^2$ is fixed too small.  Typically, we pre-scale $y$ to unit variance anytime we fix $\tau^2=1$, so there is some justification for this choice.  Can we develop a rule for how to select a good value of $\theta$?  We will need to revisit this...
 
 ### How do these values affect a monowarping?
 
@@ -221,10 +221,10 @@ dx_grid <- sq_dist(x_grid)
 grid_index <- deepgp:::fo_approx_init(x_grid, x)
 ```
 
-```{r, fig.width = 10, fig.height = 3.5}
+```{r, fig.width = 10, fig.height = 3}
 r <- 15
 for (tau2 in c(0.01, 0.1, 1, 10)) {
-  par(mfrow = c(1, 4))
+  par(mfrow = c(1, 4), mar = c(4, 4, 4, 1))
   for (theta in c(0.01, 0.1, 1, 10)) {
     w_grid <- t(rmvnorm(r, sigma = tau2*exp(-dx_grid/theta)))
     w <- matrix(nrow = nrow(x), ncol = r)
@@ -232,19 +232,158 @@ for (tau2 in c(0.01, 0.1, 1, 10)) {
       w[, i] <- deepgp:::monowarp_ref(x, x_grid, w_grid[, i], grid_index)
       w[, i] <- (w[, i] - mean(w[, i]))
     }
-    matplot(x, w, type = "l", main = paste0("tau2 = ", tau2, "\n theta = ", theta))
+    matplot(x, w, type = "l", main = paste0("tau2 = ", tau2, "\n theta = ", theta,
+                                            "\n ratio = ", tau2/theta))
   }
 }
 ```
 
+\newpage
+
 What do we see?
 
-* For small $\tau^2$, warpings are mostly linear.  Within this first row, it takes a larger $\theta$ to get a
+* For larger ratios, the monotonic warpings are more wiggly.  As the ratio gets smaller, they are forced into linear mappings.
+* For larger ratios, the span of w values (y-axis) is wider.  This will matter if we use an isotropic outer layer.
+* As $\tau^2$ increases, warpings are allowed to become more nonlinear.  The same trend happens for $\theta$, but at a slower rate.
+* If we fix $\theta$ at a reasonable value (like 0.1), then changing $\tau^2$ does give us flexibility to get a wide range of warpings (see second column of plots).  Yay!
 
+# Swapping $\tau^2$ and $\theta$ - what happens to the posterior?
 
+Presume we observe $\{X, \mathbf{y}\}$ where $X$ is $n\times D$.  Recall our swapped monowarped DGP model: 
 
+$$
+\begin{array}{rl}
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau_w^2 (K_{\theta_w}(W) + g\mathbb{I})\right) \\
+\mathbf{w}_d &\sim\mathrm{monoGP}\left(0,\; \tau_{x_d}^2 K(\mathbf{x}_d) \right) \quad d=1,\dots,D
+\end{array}
+$$
 
+The unknown quantities that we need to infer are:
 
+* $\tau^2_w$ (outer layer) - conditioned on $W$, integrate this out under a reference prior
+* $\theta_w$ (outer layer) - use Metropolis Hastings sampling
+* $g$ (outer layer, only if noisy) - keep $g$ fixed at a small value for now
+* $\mathbf{w}_d$ for $d=1,\dots,D$ (inner layer) - use elliptical slice sampling
+* $\tau^2_{x_d}$ for $d=1,\dots, D$ (inner layer) - conditioned on $\mathbf{w}_d$, integrate each of these out under a reference prior
+
+### Derivation of profile likelihood
+
+Starting with the outer layer, now denote $K = K_{\theta_w}(W) + g\mathbb{I}$.  Then,
+
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{y} \mid W, \tau^2) &\propto |\tau^2K|^{-\frac{1}{2}} * \mathrm{exp}\left(-\frac{1}{2} \mathbf{y}^\top (\tau^2K)^{-1} \mathbf{y}\right) \\
+  &\propto (\tau^2)^{-\frac{n}{2}} |K|^{-\frac{1}{2}} * \mathrm{exp}\left(-\frac{1}{2\tau^2}\mathbf{y}^\top K^{-1} \mathbf{y}\right)
+\end{aligned}
+$$
+
+Using a reference prior $\pi(\tau^2) \propto \frac{1}{\tau^2}$, we have the posterior:
+
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{y}, \tau^2 \mid W) &\propto \mathcal{L}(\mathbf{y} \mid W, \tau^2)\pi(\tau^2) \\
+&\propto (\tau^2)^{-\frac{n}{2}} |K|^{-\frac{1}{2}} * \mathrm{exp}\left(-\frac{1}{2\tau^2}\mathbf{y}^\top K^{-1} \mathbf{y}\right) * (\tau^2)^{-1} \\
+&\propto (\tau^2)^{-\frac{n}{2} - 1} |K|^{-\frac{1}{2}} * \mathrm{exp}\left(-\frac{1}{2\tau^2}\mathbf{y}^\top K^{-1} \mathbf{y}\right)
+\end{aligned}
+$$
+
+We can INTEGRATE $\tau^2$ out of this!
+
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{y} \mid W) &\propto \int_0^\infty \mathcal{L}(\mathbf{y}, \tau^2 \mid W) \; d\tau^2 \\
+&\propto |K|^{-\frac{1}{2}} \int_0^\infty (\tau^2)^{-\frac{n}{2} - 1}  * \mathrm{exp}\left(-\frac{1}{\tau^2} \left(\frac{1}{2}\mathbf{y}^\top K^{-1} \mathbf{y}\right)\right) \; d\tau^2 \\
+\end{aligned}
+$$
+Here, we recognize the kernel of an inverse Gamma distribution with $\alpha = \frac{n}{2}$ and $\beta = \frac{1}{2}\mathbf{y}^\top K^{-1} \mathbf{y}$.  Thus, dropping constants, we have:
+
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{y} \mid W) &\propto |K|^{-\frac{1}{2}} \Gamma(\alpha) \beta^{-\alpha} \\
+  &\propto |K|^{-\frac{1}{2}} \left(\mathbf{y}^\top K^{-1} \mathbf{y}\right) ^{-\frac{n}{2}} \\
+\log\mathcal{L}(\mathbf{y}\mid W) &\propto -\frac{1}{2}\log|K| - \frac{n}{2}\log\left(\mathbf{y}^\top K^{-1} \mathbf{y}\right)
+\end{aligned}
+$$
+
+We may use this simplified profile likelihood to conduct inference in our outer layer ($W$ and $\theta_y$).  But!  Note we did not just fix $\tau^2$ to one.  So when we conduct inference this way, we need to be careful of how we treat $\tau^2$ in our predictions.  For an ESS samaple of $W$, and a mapping of predictive locations $\mathcal{X}$ to warped locations $\mathcal{W}$, we have:
+
+$$
+\mathbf{y}^\star \mid \mathbf{y}, W \sim \mathrm{GP}(\mu^\star, \Sigma^\star)
+\quad\textrm{where}\quad
+\begin{aligned}
+\mu^\star &= K(\mathcal{W}, W) \left(K(W) + g\mathbb{I}\right)^{-1} \mathbf{y} \\
+\Sigma^\star &= \tau^2\left[K(\mathcal{W}) - K(\mathcal{W}, W)\left(K(W) + g\mathbb{I}\right)^{-1} K(W, \mathcal{W})\right]
+\end{aligned}
+$$
+
+What do we do with the $\tau^2$ here?  We can use a neat trick.  Remember the profile likelihood we derived above?  It is equal to the original likelihood when we plug in the MLE estimate $\hat{\tau}^2 = \frac{1}{n}\mathbf{y}^\top K^{-1} \mathbf{y}$.  Specifically,
+
+$$
+\begin{aligned}
+\log\mathcal{L}(\mathbf{y} \mid W, \tau^2 = \hat{\tau}^2) &\propto -\frac{n}{2}\log(\hat{\tau}^2) - \frac{1}{2}\log|K| \\
+  &\propto -\frac{n}{2}\log(\mathbf{y}^\top K^{-1}\mathbf{y}) - \frac{1}{2}\log|K|
+\end{aligned}
+$$
+
+We have a match!  What does this tell us?  If we conduct our MCMC sampling with the profile likelihood (integrating $\tau^2$ out), all we need to do to match this setting when we do posterior predictions is use the plug-in estimator $\hat{\tau}^2$.  Cha-ching!
+
+### How does this work on the inner layer?
+
+All the derivations we just did involved only a single GP - $\mathbf{y}$ given $W$.  So we can apply the exact same things to our inner GP - $\mathbf{w}_d$ given $\mathbf{x}_d$.  Now let $K = K(\mathbf{x}_d)$ (noise free).  Skipping over the details, our profile likelihood is:
+
+$$
+\log\mathcal{L}(\mathbf{w}_d \mid \mathbf{x}_d) \propto -\frac{1}{2}\log|K| - \frac{n}{2}\log\left(\mathbf{w}_d^\top K^{-1}\mathbf{w}_d\right)
+$$
+
+For predictions, when we map predictive locations $\mathcal{X}$ to warped locations $\mathcal{W}$, we need to use the MLE estimator $\hat{\tau}^2 = \frac{1}{n}\mathbf{w}_d K^{-1} \mathbf{w}_d$ (unless we do a mean-only mapping, in which case $\hat{\tau}^2$ is irrelevant).
+
+### Ok, let's test this out
+
+```{r}
+library(deepgp)
+library(mvtnorm)
+
+n <- 10
+d <- 1
+x <- as.matrix(seq(0, 1, length = n))
+y <- drop(rmvnorm(1, sigma = 1*exp(-sq_dist(x)/0.1)))
+nmcmc <- 1000
+D <- 1
+monowarp <- TRUE
+pmx <- FALSE
+verb <- TRUE
+true_g <- 1e-6
+v <- 2.5
+settings <- NULL
+cov <- "matern"
+vecchia <- FALSE
+
+x_grid <- deepgp:::check_monowarp(monowarp, x, d, D) # returns NULL if monowarp = FALSE
+if (!is.null(x_grid)) monowarp <- TRUE
+
+settings <- deepgp:::check_settings(settings, layers = 2, monowarp, is.null(true_g))
+settings <- deepgp:::check_pmx(settings, pmx, d, D) # appends pmx and inner_tau2 to settings list
+settings$inner_theta <- 0.1
+initial <- list(w = NULL, tau2 = 1, theta_y = 0.1, theta_w = 0.1, g = 0.001,
+                inner_tau2 = 1)
+initial <- deepgp:::check_initialization(initial, layers = 2, monowarp = monowarp, 
+                                         x = x, x_grid = x_grid, D = D, 
+                                         vecchia = vecchia, v = v, m = m, 
+                                         pmx = settings$pmx, 
+                                         inner_tau2 = settings$inner_tau2)
+samples_orig <- deepgp:::gibbs_two_layer_mono(x, y, x_grid, nmcmc, D, verb,
+                                              initial, true_g, settings, v)
+samples_swap <- deepgp:::gibbs_two_layer_mono_swap(x, y, x_grid, nmcmc, D, verb, 
+                                                   initial, true_g, settings, v)
+```
+
+How do the warpings between the original and the swapped version look?
+
+```{r}
+par(mfrow = c(1, 2))
+matplot(x_grid, t(samples_orig$w_grid[501:1000, , 1]), type = "l")
+matplot(x_grid, t(samples_swap$w_grid[501:1000, , 1]), type = "l")
+```
 
 -------
 # References
