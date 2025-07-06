@@ -337,53 +337,52 @@ $$
 
 For predictions, when we map predictive locations $\mathcal{X}$ to warped locations $\mathcal{W}$, we need to use the MLE estimator $\hat{\tau}^2 = \frac{1}{n}\mathbf{w}_d K^{-1} \mathbf{w}_d$ (unless we do a mean-only mapping, in which case $\hat{\tau}^2$ is irrelevant).
 
-### Ok, let's test this out
+### Can we use the posterior for $\tau^2$ to make decisions?
+
+With a reference prior on $\tau^2_w$ and $K = K(\mathbf{x}_d)$, we have the following posterior for each latent layer:
+
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{w}_d, \tau^2_{w_d} \mid \mathbf{x}_d) &\propto \mathcal{L}(\mathbf{w}_d \mid \mathbf{x}_d, \tau^2_{w_d})\pi(\tau^2_{w_d}) \\
+&\propto (\tau^2_{w_d})^{-\frac{n}{2} - 1} |K|^{-\frac{1}{2}} * \mathrm{exp}\left(-\frac{1}{2\tau^2_{w_d}}\mathbf{w}_d^\top K^{-1} \mathbf{w}_d\right) \\
+\pi(\tau^2_{w_d} \mid -)&\sim \mathrm{InvGamma}\left(\alpha = \frac{n}{2}, \;
+  \beta = \frac{1}{2}\mathbf{w_d}^\top K^{-1}\mathbf{w}_d\right)
+\end{aligned}
+$$
+
+We can then use the CDF of the Inverse Gamma distribution (with the `invgamma` package) to calculate posterior probabilities to inform our decisions.
+
+Let's see a quick example of such a posterior.
 
 ```{r}
 library(deepgp)
+library(invgamma)
 library(mvtnorm)
 
-n <- 10
-d <- 1
-x <- as.matrix(seq(0, 1, length = n))
-y <- drop(rmvnorm(1, sigma = 1*exp(-sq_dist(x)/0.1)))
-nmcmc <- 1000
-D <- 1
-monowarp <- TRUE
-pmx <- FALSE
-verb <- TRUE
-true_g <- 1e-6
-v <- 2.5
-settings <- NULL
-cov <- "matern"
-vecchia <- FALSE
+n <- 20
+x <- matrix(seq(0, 1, length = 20), ncol = 1)
+K <- exp(-sq_dist(x) / 0.1) + diag(1e-6, n)
+w <- drop(rmvnorm(1, sigma = K))
 
-x_grid <- deepgp:::check_monowarp(monowarp, x, d, D) # returns NULL if monowarp = FALSE
-if (!is.null(x_grid)) monowarp <- TRUE
+alpha <- n/2
+beta <- (1/2)* t(w) %*% solve(K) %*% w
 
-settings <- deepgp:::check_settings(settings, layers = 2, monowarp, is.null(true_g))
-settings <- deepgp:::check_pmx(settings, pmx, d, D) # appends pmx and inner_tau2 to settings list
-settings$inner_theta <- 0.1
-initial <- list(w = NULL, tau2 = 1, theta_y = 0.1, theta_w = 0.1, g = 0.001,
-                inner_tau2 = 1)
-initial <- deepgp:::check_initialization(initial, layers = 2, monowarp = monowarp, 
-                                         x = x, x_grid = x_grid, D = D, 
-                                         vecchia = vecchia, v = v, m = m, 
-                                         pmx = settings$pmx, 
-                                         inner_tau2 = settings$inner_tau2)
-samples_orig <- deepgp:::gibbs_two_layer_mono(x, y, x_grid, nmcmc, D, verb,
-                                              initial, true_g, settings, v)
-samples_swap <- deepgp:::gibbs_two_layer_mono_swap(x, y, x_grid, nmcmc, D, verb, 
-                                                   initial, true_g, settings, v)
+tau2 <- seq(0.01, 5, length = 100)
+dens <- dinvgamma(tau2, shape = alpha, rate = beta)
+
+par(mfrow = c(1, 2))
+plot(x, w, main = "Example Warping")
+plot(tau2, dens, type = "l", main = "Posterior density (truth in red)")
+abline(v = 1, col = 2, lty = 2)
 ```
 
-How do the warpings between the original and the swapped version look?
+We can get CDF calculations using:
 
 ```{r}
-par(mfrow = c(1, 2))
-matplot(x_grid, t(samples_orig$w_grid[501:1000, , 1]), type = "l")
-matplot(x_grid, t(samples_swap$w_grid[501:1000, , 1]), type = "l")
+pinvgamma(1, shape = alpha, rate = beta)
 ```
+
+These could be useful to us!  We know that in our monowarp DGP, as $\tau^2_w\rightarrow 0$, $\mathbf{w}_d\rightarrow \mathbf{0}$ (as long as the prior mean is zero).  This tells us that input $\mathbf{x}_d$ is not significant.  Perhaps we can find a threshold on $\tau^2_w$ - if the posterior probability that $\tau^2_w$ is less than that value is high enough, we may confidently deselect it.
 
 -------
 # References
