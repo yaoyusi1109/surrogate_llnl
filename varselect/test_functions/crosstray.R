@@ -69,23 +69,33 @@ fit4 <- trim(fit4, 3000, 2)
 fit4 <- predict(fit4, xx, lite = TRUE)
 plot(fit4)
 
+# swapped monowarp DGP, theta = 0.01
+fit5 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
+                      true_g = 1e-6, settings = list(theta_w = 0.001))
+plot(fit5, trace = TRUE, hidden = TRUE)
+fit5 <- trim(fit5, 3000, 2)
+fit5 <- predict(fit5, xx, lite = TRUE)
+plot(fit5)
+
 save(fit0, fit1, fit2, fit3, fit4, file = "crosstray_2d_fits.RData")
 
 # How do these fits compare? --------------------------------------------------
 
 load("crosstray_2d_fits.RData")
 
-results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01"),
+results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01", "msDGP_0.001"),
                       "rmse" = c(rmse(yy, fit0$mean),
                                  rmse(yy, fit1$mean),
                                  rmse(yy, fit2$mean),
                                  rmse(yy, fit3$mean),
-                                 rmse(yy, fit4$mean)),
+                                 rmse(yy, fit4$mean),
+                                 rmse(yy, fit5$mean)),
                       "crps" = c(crps(yy, fit0$mean, fit0$s2),
                                  crps(yy, fit1$mean, fit1$s2),
                                  crps(yy, fit2$mean, fit2$s2),
                                  crps(yy, fit3$mean, fit3$s2),
-                                 crps(yy, fit4$mean, fit4$s2)))
+                                 crps(yy, fit4$mean, fit4$s2),
+                                 crps(yy, fit5$mean, fit5$s2)))
 
 par(mfrow = c(1, 2), mar = c(7, 5, 2, 2))
 plot(1:5, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
@@ -101,7 +111,7 @@ plot(fit3, trace = TRUE, predict = FALSE)
 # Fits with a third dummy variable --------------------------------------------
 
 # regular GP
-fit0 <- fit_one_layer(xdummy, y, nmcmc = 5000, true_g = 1e-6, sep = TRUE)
+fit0 <- fit_one_layer(xdummy, y, nmcmc = 5000, true_g = 1e-6, sep = FALSE)
 plot(fit0) 
 fit0 <- trim(fit0, 3000, 2)
 fit0 <- predict(fit0, xxdummy, lite = TRUE)
@@ -136,6 +146,8 @@ fit4 <- predict(fit4, xxdummy, lite = TRUE)
 save(fit0, fit1, fit2, fit3, fit4, file = "crosstray_3d_fits.RData")
 
 # How do these fits compare? --------------------------------------------------
+
+load("crosstray_3d_fits.RData")
 
 results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01"),
                       "rmse" = c(rmse(yy, fit0$mean),
@@ -198,9 +210,9 @@ for (d in 1:3) {
 
 # Track posterior probability of being less than 1?
 
-threshold <- 0.1
+#threshold <- 0.01
 
-post_prob_less <- matrix(nrow = fit$nmcmc, ncol = 3)
+post_thres_0.05 <- matrix(nrow = fit$nmcmc, ncol = 3)
 for (d in 1:3) {
   for (t in 1:fit$nmcmc) {
     w <- fit$w[t, , d]
@@ -208,13 +220,17 @@ for (d in 1:3) {
                          g = deepgp:::eps, v = fit$v)
     Kinv <- solve(K)
     beta <- (1/2) * t(w) %*% Kinv %*% w
-    post_prob_less_than_1[t, d] <- pinvgamma(threshold, shape = alpha, rate = beta)
+    post_thres_0.05[t, d] <- qinvgamma(0.95, shape = alpha, rate = beta)
   }
 }
 
 par(mfrow = c(1, 3))
 for (d in 1:3) {
-  plot(post_prob_less_than_1[, d], type = "l", ylim = c(0, 1),
-       xlab = "Iteration", ylab = paste0("P(tau2 < ", threshold, ")"), 
+  plot(post_thres_0.05[, d], type = "l", ylim = c(0, 5),
+       xlab = "Iteration", ylab = "",#paste0("P(tau2 < ", threshold, ")"), 
        main = paste0("Dimension ", d))
 }
+
+# What threshold would give you 95% or 99%
+# Average over burned-in iterations
+# Report in decreasing order
