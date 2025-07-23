@@ -384,5 +384,20 @@ pinvgamma(1, shape = alpha, rate = beta)
 
 These could be useful to us!  We know that in our monowarp DGP, as $\tau^2_w\rightarrow 0$, $\mathbf{w}_d\rightarrow \mathbf{0}$ (as long as the prior mean is zero).  This tells us that input $\mathbf{x}_d$ is not significant.  Perhaps we can find a threshold on $\tau^2_w$ - if the posterior probability that $\tau^2_w$ is less than that value is high enough, we may confidently deselect it.
 
+### Implementation Details
+
+First, notice that we can re-write the $\beta$ parameter of this posterior as a function of $\hat{\tau}^2_w$:
+
+$$
+\beta = \frac{n}{2}\hat{\tau}^2_w\quad\textrm{where}\quad
+\hat{\tau}^2_w = \frac{1}{n}\mathbf{w}_d^\top K^{-1} \mathbf{w}_d
+$$
+
+In the `deepgp` package, I have coded up storage of $\hat{\tau}^2_w$ as `tau2_w`.  Thus, any calculations of this posterior distribution can be simple post-processing of the quantites that are alreay stored.
+
+Second, after exploring various options, I decided to set the default as $\theta_w = 0.01$.
+
+Also note, that in the monowarp DGP implementation, all of the computations for the inner layer are done on the GRID values.  So data sizes are kept small, and fits are very fast.
+
 -------
 # References

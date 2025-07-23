@@ -98,14 +98,14 @@ results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0
                                  crps(yy, fit5$mean, fit5$s2)))
 
 par(mfrow = c(1, 2), mar = c(7, 5, 2, 2))
-plot(1:5, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
-axis(1, 1:5, labels = results$model, las = 2)
-plot(1:5, results$crps, xaxt = "n", ylab = "CRPS", xlab = "")
-axis(1, 1:5, labels = results$model, las = 2)
+plot(1:6, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
+axis(1, 1:6, labels = results$model, las = 2)
+plot(1:6, results$crps, xaxt = "n", ylab = "CRPS", xlab = "")
+axis(1, 1:6, labels = results$model, las = 2)
 
 # Zoom in on fit1 (the original monoDGP) and fit3 (the "default" swapped monowarp DGP)
 plot(fit1, trace = TRUE, predict = FALSE)
-plot(fit3, trace = TRUE, predict = FALSE)
+plot(fit4, trace = TRUE, predict = FALSE)
 # All these values are reasonable
 
 # Fits with a third dummy variable --------------------------------------------
@@ -143,29 +143,38 @@ plot(fit4, trace = TRUE, hidden = TRUE)
 fit4 <- trim(fit4, 3000, 2)
 fit4 <- predict(fit4, xxdummy, lite = TRUE)
 
-save(fit0, fit1, fit2, fit3, fit4, file = "crosstray_3d_fits.RData")
+# swapped monowarp DGP, theta = 0.001
+fit5 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
+                      true_g = 1e-6, settings = list(theta_w = 0.001))
+plot(fit5, trace = TRUE, hidden = TRUE)
+fit5 <- trim(fit5, 3000, 2)
+fit5 <- predict(fit5, xxdummy, lite = TRUE)
+
+save(fit0, fit1, fit2, fit3, fit4, fit5, file = "crosstray_3d_fits.RData")
 
 # How do these fits compare? --------------------------------------------------
 
 load("crosstray_3d_fits.RData")
 
-results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01"),
+results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01", "msDGP_0.001"),
                       "rmse" = c(rmse(yy, fit0$mean),
                                  rmse(yy, fit1$mean),
                                  rmse(yy, fit2$mean),
                                  rmse(yy, fit3$mean),
-                                 rmse(yy, fit4$mean)),
+                                 rmse(yy, fit4$mean),
+                                 rmse(yy, fit5$mean)),
                       "crps" = c(crps(yy, fit0$mean, fit0$s2),
                                  crps(yy, fit1$mean, fit1$s2),
                                  crps(yy, fit2$mean, fit2$s2),
                                  crps(yy, fit3$mean, fit3$s2),
-                                 crps(yy, fit4$mean, fit4$s2)))
+                                 crps(yy, fit4$mean, fit4$s2),
+                                 crps(yy, fit5$mean, fit5$s2)))
 
 par(mfrow = c(1, 2), mar = c(7, 5, 2, 2))
-plot(1:5, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
-axis(1, 1:5, labels = results$model, las = 2)
-plot(1:5, results$crps, xaxt = "n", ylab = "CRPS", xlab = "")
-axis(1, 1:5, labels = results$model, las = 2)
+plot(1:6, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
+axis(1, 1:6, labels = results$model, las = 2)
+plot(1:6, results$crps, xaxt = "n", ylab = "CRPS", xlab = "")
+axis(1, 1:6, labels = results$model, las = 2)
 
 # Zoom in on fit1 (regular monowarp DGP) and fit4 (best swap monowarp DGP)
 plot(fit1, trace = TRUE, predict = FALSE) # no easy decision rule...
@@ -178,59 +187,43 @@ library(viridis)
 col <- viridis(50)
 
 fit <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE,
-                     true_g = 1e-6, settings = list(theta_w = 0.01))
+                     true_g = 1e-6)
+fit <- trim(fit, 3000, 2)
 
-
-dx <- sq_dist(x)
+dx <- sq_dist(fit$x_grid)
 alpha <- n/2
-tau2_grid <- seq(0, 4, length = 100)
+tau2_grid <- seq(0, 2, length = 100)
 
-# Visualize posterior distribution across iterations
+# Notice, we can re-write the beta parameter as a function of tau2_w, which is already stored
+beta <- fit$tau2_w*n/2
+
+# First, what does the progress in the posterior distribution of each tau2 look like?
 par(mfrow = c(1, 3))
 for (d in 1:3) {
   col_indx <- 1
   for (t in floor(seq(1, fit$nmcmc, length = 50))) {
-    w <- fit$w[t, , d]
-    K <- deepgp:::Matern(dx, tau2 = fit$tau2_w[t], theta = fit$settings$theta_w,
-                         g = deepgp:::eps, v = fit$v)
-    Kinv <- solve(K)
-    beta <- (1/2) * t(w) %*% Kinv %*% w
-
-    dens <- dinvgamma(tau2_grid, shape = alpha, rate = beta)
+    dens <- dinvgamma(tau2_grid, shape = alpha, rate = beta[t, d])
     if (t == 1) {
-      plot(tau2_grid, dens/max(dens), 
+      plot(tau2_grid, dens, 
            col = col[1], type = "l", xlab = "tau2_w", ylab = "Density", 
-           main = paste0("Dimension ", d))
+           main = paste0("Dimension ", d), ylim = c(0, 4))
     } else {
-      lines(tau2_grid, dens/max(dens), col = col[col_indx])
+      lines(tau2_grid, dens, col = col[col_indx])
     }
     col_indx <- col_indx + 1
   }
 }
 
-# Track posterior probability of being less than 1?
-
-#threshold <- 0.01
-
-post_thres_0.05 <- matrix(nrow = fit$nmcmc, ncol = 3)
-for (d in 1:3) {
-  for (t in 1:fit$nmcmc) {
-    w <- fit$w[t, , d]
-    K <- deepgp:::Matern(dx, tau2 = fit$tau2_w[t], theta = fit$settings$theta_w,
-                         g = deepgp:::eps, v = fit$v)
-    Kinv <- solve(K)
-    beta <- (1/2) * t(w) %*% Kinv %*% w
-    post_thres_0.05[t, d] <- qinvgamma(0.95, shape = alpha, rate = beta)
-  }
-}
+# Second, what is the upper 99% bound on each tau2?
+upper99 <- qinvgamma(0.99, shape = alpha, rate = beta)
 
 par(mfrow = c(1, 3))
 for (d in 1:3) {
-  plot(post_thres_0.05[, d], type = "l", ylim = c(0, 5),
-       xlab = "Iteration", ylab = "",#paste0("P(tau2 < ", threshold, ")"), 
-       main = paste0("Dimension ", d))
+  plot(upper99[, d], type = "l",
+       xlab = "MCMC iteration", ylab = "Upper 95% quantile for tau2",
+       main = paste0("Dimension", d), ylim = c(0, 2))
 }
 
-# What threshold would give you 95% or 99%
-# Average over burned-in iterations
-# Report in decreasing order
+sort(apply(upper99, 2, mean), decreasing = TRUE)
+sort(apply(upper99, 2, median), decreasing = TRUE)
+
