@@ -19,92 +19,96 @@ gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
 
 # First two high, last one IRRELEVANT -----------------------------------------
 
-a <- c(0, 0)
-x <- randomLHS(n, d - 1)
-y <- gfunc(x)
-x <- cbind(x, runif(n))
-
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE,
-                     true_g = 1e-6, pmx = TRUE)
-plot(fit, hidden = TRUE)
-fit <- trim(fit, 3000, 2)
-plot_tau2(fit)
-summarize_tau2(fit)
-
-# First two high, last one low effect -----------------------------------------
-
 a <- c(0, 0, 99)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
+plot_pairs(x, y)
 
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE,
-                     true_g = 1e-6, pmx = TRUE)
-plot(fit, hidden = TRUE)
-fit <- trim(fit, 3000, 2)
-plot_tau2(fit)
-summarize_tau2(fit)
+fit1 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE)
+plot(fit1, hidden = TRUE)
+fit1 <- trim(fit1, 3000, 2)
+plot_tau2(fit1)
+summarize_tau2(fit1)
 
-# First one high, second one medium, last one low -----------------------------
+# First two high, last one low ------------------------------------------------
 
-a <- c(0, 1, 99)
+a <- c(0, 0, 9)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
 
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE,
-                     true_g = 1e-6, pmx = TRUE) 
-plot(fit, hidden = TRUE)
-fit <- trim(fit, 3000, 2)
-plot_tau2(fit)
-summarize_tau2(fit)
+fit2 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE) # nugget a bit high, but still works
+plot(fit2, hidden = TRUE)
+fit2 <- trim(fit2, 3000, 2)
+plot_tau2(fit2)
+summarize_tau2(fit2)
+
+# First one high, second one medium, last one low -----------------------------
+
+a <- c(0, 1, 9)
+x <- randomLHS(n, d)
+y <- gfunc(x, a)
+
+fit3 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE) 
+plot(fit3, hidden = TRUE)
+fit3 <- trim(fit3, 3000, 2)
+plot_tau2(fit3)
+summarize_tau2(fit3)
 
 # NOW, how does variable selection affect predictions? ------------------------
-# Estimate nugget???
 
 # What should we really be comparing?
 
 # All we need to show is that our variable selecting DGP does better than 
-# a regular DGP applied on all the variables
+# a regular DGP applied on all the variables, right?
 # The variable selecting DGP should match the DGP with dummy variables removed
 
-
-# Use high, medium, low setting
-a <- c(0, 1, 99)
+# When the last input is irrelevant
+a <- c(0, 0, 99)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
-
 xx <- randomLHS(500, d)
-yy <- gfunc(xx)
+yy <- gfunc(xx, a)
 
-# First, fit with all 3 variables
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE)
-plot(fit, hidden = TRUE)
+# Our DGP that de-selected the third input
+fit <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE)
 fit <- trim(fit, 3000, 2)
 fit <- predict(fit, xx)
 
-# Non monowarp
-fit1 <- fit_two_layer(x, y, nmcmc = 5000)
-plot(fit1, hidden = TRUE)
-fit1 <- trim(fit1, 3000, 2)
-fit1 <- predict(fit1, xx)
+# A monowarp DGP with all 3 inputs
+fit_mono <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE)
+fit_mono <- trim(fit_mono, 3000, 2)
+fit_mono <- predict(fit_mono, xx)
 
-# Now, fit with only the first 2 variables (estimate g?) - Non monowarp?
-fit2 <- fit_two_layer(x[, 1:2], y, nmcmc = 5000)
-plot(fit2, hidden = TRUE)
-fit2 <- trim(fit2, 3000, 2)
-fit2 <- predict(fit2, xx[, 1:2])
+# A monowarp DGP with only the first two inputs
+fit_mono_trim <- fit_two_layer(x[, 1:2], y, nmcmc = 5000, monowarp = TRUE)
+fit_mono_trim <- trim(fit_mono_trim, 3000, 2)
+fit_mono_trim <- predict(fit_mono_trim, xx[, 1:2])
 
-plot(yy, fit$mean)
-points(yy, fit1$mean, col = 2)
-points(yy, fit2$mean, col = 3)
+# A full DGP with all 3 inputs
+fit_full <- fit_two_layer(x, y, nmcmc = 5000)
+fit_full <- trim(fit_full, 3000, 2)
+fit_full <- predict(fit_full, xx)
 
-rmse(yy, fit$mean)
-rmse(yy, fit1$mean)
-rmse(yy, fit2$mean)
+# A full DGP with only the first two inputs
+fit_trim <- fit_two_layer(x[, 1:2], y, nmcmc = 5000)
+fit_trim <- trim(fit_trim, 3000, 2)
+fit_trim <- predict(fit_trim, xx[, 1:2])
 
-crps(yy, fit$mean, fit$s2)
-crps(yy, fit1$mean, fit1$s2)
-crps(yy, fit2$mean, fit2$s2)
+# How do they compare?
+par(mfrow = c(2, 3))
+plot(yy, fit$mean, ylim = c(min(yy), max(yy)),
+     main = paste0("RMSE = ", round(rmse(yy, fit$mean), 3), "\n CRPS = ", 
+                   round(crps(yy, fit$mean, fit$s2), 3)))
+plot(yy, fit_mono$mean, col = 2, ylim = c(min(yy), max(yy)),
+       main = paste0("RMSE = ", round(rmse(yy, fit_mono$mean), 3), "\n CRPS = ", 
+                     round(crps(yy, fit_mono$mean, fit_mono$s2), 3)))
+plot(yy, fit_mono_trim$mean, col = 3, ylim = c(min(yy), max(yy)),
+       main = paste0("RMSE = ", round(rmse(yy, fit_mono_trim$mean), 3), "\n CRPS = ", 
+                     round(crps(yy, fit_mono_trim$mean, fit_mono_trim$s2), 3)))
+plot(yy, fit_full$mean, col = 4, ylim = c(min(yy), max(yy)),
+       main = paste0("RMSE = ", round(rmse(yy, fit_full$mean), 3), "\n CRPS = ", 
+                     round(crps(yy, fit_full$mean, fit_full$s2), 3)))
+plot(yy, fit_trim$mean, col = 5, ylim = c(min(yy), max(yy)),
+       main = paste0("RMSE = ", round(rmse(yy, fit_trim$mean), 3), "\n CRPS = ", 
+                     round(crps(yy, fit_trim$mean, fit_trim$s2), 3)))
 
-fit$time
-fit1$time
-fit2$time

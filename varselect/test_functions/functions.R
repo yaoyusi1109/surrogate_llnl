@@ -1,7 +1,9 @@
 
-plot_tau2 <- function(object, p = 0.01) {
-  n <- nrow(object$x)
-  d <- ncol(object$x)
+library(invgamma)
+
+plot_tau2 <- function(fit, p = 0.01) {
+  n <- nrow(fit$x)
+  d <- ncol(fit$x)
   alpha <- n/2
   beta <- fit$tau2_w*n/2
   upper <- qinvgamma(1 - p, shape = alpha, rate = beta)
@@ -14,9 +16,9 @@ plot_tau2 <- function(object, p = 0.01) {
          main = paste0("Dimension", i))
 }
 
-summarize_tau2 <- function(object, p = 0.01) {
-  n <- nrow(object$x)
-  d <- ncol(object$x)
+summarize_tau2 <- function(fit, p = 0.01) {
+  n <- nrow(fit$x)
+  d <- ncol(fit$x)
   alpha <- n/2
   beta <- fit$tau2_w*n/2
   upper <- qinvgamma(1 - p, shape = alpha, rate = beta)
@@ -24,4 +26,11 @@ summarize_tau2 <- function(object, p = 0.01) {
                         "tau2_med" = apply(upper, 2, median))
   rownames(results) <- NULL
   return(results[order(results$tau2_med, decreasing = TRUE), ])
+}
+
+plot_pairs <- function(x, y) {
+  d <- ncol(x)
+  par(mfrow = c(1, d), mar = c(5, 4, 2, 2))
+  for (i in 1:d)
+    plot(x[, i], y)
 }
