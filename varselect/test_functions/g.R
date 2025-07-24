@@ -44,11 +44,12 @@ summarize_tau2(fit2)
 
 # First one high, second one medium, last one low -----------------------------
 
-a <- c(0, 1, 9)
+a <- c(0, 1, 5)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
 
-fit3 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE) 
+fit3 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE, true_g = 1e-6) 
+# TODO: stop this converging to flat
 plot(fit3, hidden = TRUE)
 fit3 <- trim(fit3, 3000, 2)
 plot_tau2(fit3)
