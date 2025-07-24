@@ -9,7 +9,7 @@ source("functions.R")
 d <- 3
 n <- 50
 
-gfunc <- function(x, a = (1:d - 1)/2) {
+gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
   if (!is.matrix(x)) x <- as.matrix(x)
   prod <- 1
   for (i in 1:ncol(x))
