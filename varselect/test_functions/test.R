@@ -1,10 +1,20 @@
 
+# Numerical issue
+# Sometimes, tau2_w goes to zero
+# This makes all points converge to a single point
+# Then tau2_y goes to infinity
+# Model is garbage
+# WHY IS THIS HAPPENING AND HOW DO WE STOP IT?
+
+# Could this be fixed simply by estimating the nugget?
+# I'm pretty confident we should NOT be fixing the nugget if we are potentially
+# deselecting inputs
+
+# Perhaps we need a lower bound on tau2_w???
+
 library(deepgp)
 library(lhs)
 source("functions.R")
-
-# The "a" parameter of the G function controls how important a variable is
-# Here, we test out several variations on this function in 3 dimensions
 
 d <- 3
 n <- 50
@@ -17,33 +27,7 @@ gfunc <- function(x, a = (1:d - 1)/2) {
   return(prod)
 }
 
-# First two high, last one IRRELEVANT -----------------------------------------
-
-a <- c(0, 0)
-x <- randomLHS(n, d - 1)
-y <- gfunc(x)
-x <- cbind(x, runif(n))
-
-fit <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE)
-plot(fit, hidden = TRUE)
-fit <- trim(fit, 3000, 2)
-plot_tau2(fit)
-summarize_tau2(fit)
-
-# First two high, last one low effect -----------------------------------------
-
-a <- c(0, 0, 99)
-x <- randomLHS(n, d)
-y <- gfunc(x, a)
-
-fit <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE)
-plot(fit, hidden = TRUE)
-fit <- trim(fit, 3000, 2)
-plot_tau2(fit)
-summarize_tau2(fit)
-
-# First one high, second one medium, last one low -----------------------------
-
+set.seed(1)
 a <- c(0, 1, 99)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)

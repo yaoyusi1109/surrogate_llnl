@@ -1,6 +1,7 @@
 
 library(deepgp)
 library(lhs)
+library(invgamma)
 
 borehole <- function(x) {
   if (!is.matrix(x)) x <- as.matrix(x)
@@ -18,31 +19,54 @@ borehole <- function(x) {
   frac2b <- Tu / Tl
   frac2 <- log(r/rw) * (1+frac2a+frac2b)
   y <- frac1 / frac2
-  return(y)
+  return((y - 78) / 46) # about zero mean with unit variance
 }
 
-d <- 9 # one dummy variable in 9th spot
-n <- 200
-x <- randomLHS(200, d - 1)
+d <- 8 
+n <- 300
+x <- randomLHS(n, d)
 x <- cbind(x, runif(n))
 y <- borehole(x)
+np <- 500
+xp <- randomLHS(np, d)
+xp <- cbind(xp, runif(np))
+yp <- borehole(xp)
 
-# n = 100 is not enough data to figure things out
+# Regular monowarp DGP fit for context
+fit <- fit_two_layer(x, y, nmcmc = 3000, monowarp = TRUE, vecchia = TRUE)
+plot(fit)
+fit <- trim(fit, 1000, 20)
+plot(fit, trace = FALSE, hidden = TRUE)
+fit <- predict(fit, xp)
 
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE,
-                     true_g = 1e-6, pmx = TRUE) # pmx = FALSE gives error???
-fit <- trim(fit, 100)
-#plot(fit, hidden = TRUE)
-#fit <- trim(fit, 3000, 2)
+# Swapped DGP
+fits <- fit_two_layer(x, y, nmcmc = 3000, swap = TRUE, vecchia = TRUE)
+plot(fits)
+fits <- trim(fits, 1000, 2)
+plot(fits, trace = FALSE, hidden = TRUE)
+fits <- predict(fits, xp)
 
-# NEED TO GET VECCHIA IMPLEMENTATION WORKING
+# Swapped DGP with pmx
+fitsx <- fit_two_layer(x, y, nmcmc = 3000, swap = TRUE, pmx = TRUE)
+plot(fitsx)
+fitsx <- trim(fitsx, 1000, 2)
+plot(fitsx, trace = FALSE, hidden = TRUE)
+fitsx <- predict(fitsx, xp)
 
-alpha <- n/2
-beta <- fit$tau2_w*n/2
-upper99 <- qinvgamma(0.99, shape = alpha, rate = beta)
-par(mfrow = c(3, 3))
-for (i in 1:d) plot(upper99[, i], type = "l", ylim = c(0, max(upper99)))
+plot(yp, fit$mean)
+points(yp, fits$mean, col = 2)
+points(yp, fitsx$mean, col = d)
+abline(0, 1)
 
-meds <- apply(upper99, 2, median)
-order(meds, decreasing = TRUE)
-sort(meds, decreasing = TRUE)
+par(mfrow = c(1, 3))
+hist(sqrt(fit$s2))
+hist(sqrt(fits$s2))
+hist(sqrt(fitsx$s2))
+
+rmse(yp, fit$mean); crps(yp, fit$mean, fit$s2)
+rmse(yp, fits$mean); crps(yp, fits$mean, fits$s2)
+rmse(yp, fitsx$mean); crps(yp, fitsx$mean, fitsx$s2)
+
+# The fits are the same, doing great!  But the hyperparameters are just crazily scaled
+# What can we do to keep the scale in check?
+# If the tau2 values get too small, we will lose numerical stability
