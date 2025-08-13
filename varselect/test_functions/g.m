@@ -1,41 +1,45 @@
-n = 10;
-d = 2;
+
+n = 30;
+d = 3;
+a = [0, 0, 99];
 x = lhsdesign(n, d);
-y = gfunc(x);
+y = gfunc(x, a);
 
-xp = lhsdesign(500, d);
-yp = gfunc(xp);
+% Fan Zhang method --------------------------------------------------------
 
-% traditional kriging
-k = oodacefit(x, y);
-[mu, s2] = k.predict(xp);
+% Run Indicator-based Bayesian variable selection algorithm
+% X and y are required
+results = Indicator_based_bayesian_vs_gp(x, y, ...
+    'lambda', 1, ... % default 1
+    'tau', 1, ... % default 1
+    'sigma', 1, ... % default 1
+    'q', 0.5, ... % default 0.5
+    'iterations', 200, ... % default 2000
+    'burnin', 100, ... % default 1000
+    'scaling', 3, ...
+    'verbose', 1);
 
-% blind kriging
-opts.type = 'BlindKriging';
-opts.retuneParameters = true;
-k = oodacefit(x, y, opts);
-[mu, s2] = k.predict(xp);
+% Display results
+disp('Probabilities of active variables:');
+disp(results.active_prob);
 
-inDim = d;
-metricName = 'cvpe';
-% blind kriging with summary output?
+disp('Selected variables:');
+disp(results.active_vars);
+
+% Blind Kriging method ----------------------------------------------------
+
 opts = BlindKriging.getDefaultOptions();
-theta0 = zeros(1,inDim);
-opts.hpBounds = [repmat(-2, 1, inDim); repmat(log10(4), 1, inDim)];
+theta0 = zeros(1,d);
+opts.hpBounds = [repmat(-2, 1, d); repmat(log10(4), 1, d)];
 opts.hpOptimizer = SQPLabOptimizer(inDim, 1);
-
-opts.regressionMetric = metricName;
+opts.regressionMetric = 'cvpe';
 opts.retuneParameters = true;
 opts.regressionMaxOrder = 2;
 opts.regressionMaxLevelInteractions = 2;
 blindKrige = BlindKriging(opts, theta0, 'regpoly0', @corrgauss);
-[blindKrige ordinaryKrige] = blindKrige.fit(x, y);
+blindKrige = blindKrige.fit(x, y);
 	
-[dummy regrFunc terms] = blindKrige.regressionFunction( struct('latex', false, 'includeCoefficients', false) ); % latex output of regression function
+[dummy regrFunc terms] = blindKrige.regressionFunction( struct('latex', false, 'includeCoefficients', false) );
+terms
 
-ok_predy = ordinaryKrige.predict(xp);
-bk_predy = blindKrige.predict(xp);
-
-
-scatter(yp, ok_predy)
-scatter(yp, bk_predy)
+%bk_predy = blindKrige.predict(xp);

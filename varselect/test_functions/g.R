@@ -7,12 +7,14 @@ source("functions.R")
 # Here, we test out several variations on this function in 3 dimensions
 
 d <- 3
-n <- 50
+n <- 30
 
 gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
   if (!is.matrix(x)) x <- as.matrix(x)
-  prod <- 1
-  for (i in 1:ncol(x))
+  n <- nrow(x)
+  d <- ncol(x)
+  prod <- rep(1, times = n)
+  for (i in 1:d)
     prod <- prod * (abs(4*x[, i] - 2) + a[i]) / (1 + a[i])
   return(prod)
 }
@@ -22,7 +24,6 @@ gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
 a <- c(0, 0, 99)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
-plot_pairs(x, y)
 
 fit1 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE)
 plot(fit1, hidden = TRUE)
