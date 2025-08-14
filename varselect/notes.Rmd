@@ -1,5 +1,7 @@
 ---
-title: "Variable Section with (D)GPs"
+title: "Year 1 Quarter 1"
+date: "May 15, 2025 - August 15, 2025"
+author: "Annie Booth"
 bibliography: ../ref.bib 
 output: pdf_document
 ---
@@ -13,9 +15,11 @@ library(deepgp)
 library(mvtnorm)
 ```
 
-# Previous works on variable selection for GPs
+This document serves as a progress report for our work on our Academic Collaboration Team project.  Our focus this quarter has been on variable selection methods for deep Gaussian process surrogates.
 
-Most works on variable selection with GPs use a linear mean and a separable covariance with the lengthscale in the numerator.  
+# Previous works
+
+Variable selecton with DGPs has not yet been entertained, but variable selection for GPs is a rather common problem.  Most works on variable selection with GPs use a linear mean and a separable covariance with the lengthscale in the numerator.  
 
 $$
 \mathbf{y} \sim \mathcal{N}\left(X\beta, \Sigma_x\right)
@@ -36,22 +40,30 @@ $$
 \hat{\tau}^2 = \frac{1}{n}(\mathbf{y} - X\hat{\beta})^\top \Sigma_x^{-1}(\mathbf{y} - X\hat{\beta})
 $$
 
-The lengthscales $\boldsymbol\theta = [\theta_1, ..., \theta_d]$ requires numerical optimization.
+The lengthscales $\boldsymbol\theta = [\theta_1, ..., \theta_d]$ require numerical optimization.
 
 In this framework, there are two avenues for "de-selecting" an input.
 
 1. A particular $x_d$ could be taken out of the mean term $X\beta$.  This is equivalent to $\beta_d = 0$.
 2. A particular $x_d$ could be taken out of the covariance term $\Sigma_n$.  This is equivalent to $\theta_d = 0$.
 
-**Important Citations:**
+### Important Citations
 
-* @linkletter2006variable: Places a mixture model prior on the lengthscale parameters with a point mass on zero.  Call the method "reference distribution variable selection."
-* @joseph2008blind: Perform variable selection only in the $X\beta$ mean term.  Call this "blind kriging."
-* @zhang2023indicator: Uses indicator functions to turn variables on/off.  If the indicator is zero, then the $\beta_i$ parameter in the $X\beta$ mean AND the $\theta_i$ parameter in the separable covariance are zero.  Note, to set $\theta$ equal to zero, we must put it in the numerator of the kernel.
+* @linkletter2006variable: Places a mixture model prior on the lengthscale parameters with a point mass on zero.  This method is called "reference distribution variable selection."
+* @joseph2008blind: Perform variable selection only in the $X\beta$ mean term.  This method is called "blind kriging."
+* @zhang2023indicator: Uses indicator functions to turn variables on/off.  If the indicator is zero, then the $\beta_i$ parameter in the $X\beta$ mean AND the $\theta_i$ parameter in the separable covariance are zero.  Note, to set $\theta$ equal to zero, we must put it in the numerator of the kernel.  This is considered the ``state-of-the-art'' at this time.
 
-# Traditional Monowarped DGPs
+### Software Implementation
 
-In our typical DGP framework, we have
+Blind kriging is implemented in the `ooDACE` toolbox for MATLAB.  I have successfully installed this software and tested it on toy problems.  I need to figure out an automated way to "grab" the inputs that are retained in the mean term (as of now, the software prints the regex equation to the console).
+
+I contacted the authors of @zhang2023indicator, and they sent me the MATLAB code to implement their method.  I have successfully tested it on toy problems.
+
+Both of these competitors are ready to be deployed on benchmark problems against our proposed novel method.
+
+# Traditional DGPs
+
+In our typical DGP framework [@sauer2023active], we have
 
 $$
 \begin{array}{rl}
@@ -66,12 +78,23 @@ K_{\theta_x^p}(X)^{(ij)} &= \mathrm{exp}\left(-\frac{1}{\theta_x^p} \sum_{d=1}^D
 \end{array}
 $$
 
+The following diagram summarizes the lengthscale structure.  On the latent layers, $\tau^2$ is fixed at 1 and $g$ is fixed at zero.
+
 ![](diagrams/Slide1.png)
 
+In the `deepgp` package, this model may be fit with the following code:
+
+```{r, eval = FALSE}
+fit <- fit_two_layer(x, y, nmcmc = 10000)
+fit <- trim(fit, 5000, 5)
+fit <- predict(fit, xp)
+```
 
 In this original formulation, all dimensions of $X$ go to all dimensions of $W$.  There is no clear way to "de-select" a dimension of $X$.  If we wanted to draw inspiration from @linkletter2006variable, we could turn  $\theta_x^p$ into separable lengthscales, and then turn some of them off (going to $\infty$ in the denominator is equivalent to 0 in the numerator).  I think this is a terrible idea in our setting, because we would have $D\times P$ many unique lengthscale parameters to estimate here.  Very messy for very little gain.  [Or perhaps we give each dimension of $X$ a unique lengthscale, but keep these the same for all nodes of $W$?.  This just seems counterintuitive to me.]
 
-Instead, I propose we embrace one-dimensional warpings.  Originally, we proposed the following monowarp DGP structure:
+# Monowarped DGPs
+
+Instead, I propose we embrace one-dimensional warpings, as I have proposed in previous work [@barnett2025monotonic].  Originally, we used the following monowarp DGP structure:
 
 $$
 \begin{array}{rl}
@@ -79,12 +102,16 @@ $$
 \mathbf{w}_d &\sim\mathrm{monoGP}\left(0,\; K_{\theta_x^d}(\mathbf{x}_d) \right) \quad d=1,\dots,D
 \end{array}
 $$
-where kernels $K(\cdot)$ are defined as above, and each $\mathbf{w}_d$ is forced to be monotonic.  
+where kernels $K(\cdot)$ are defined as above, and each $\mathbf{w}_d$ is forced to be monotonic.  To get this ``monoGP,'' we used a cumulative sum transformation of random draws from the GP prior.  It is also possible to have each $\mathbf{w}_d$ with a prior mean of $\mathbf{x}_d$ instead of 0.
 
 ![](diagrams/Slide2.png)
+This monowarped DGP may be fit by providing the argument `monowarp = TRUE` to the `fit_two_layer` function:
 
+```{r, eval = FALSE}
+fit <- fit_two_layer(x, y, nmcmc = 10000, monwarp = TRUE)
+```
 
-I have since developed a work-around to avoid separable lengthscales on the outer layer (by removing forced scaling of each warping).  We can then have the simpler model:
+To streamline things, I have developed a work-around to avoid separable lengthscales on the outer layer (by removing forced scaling of each warping).  We can then have the simpler model:
 
 $$
 \begin{array}{rl}
@@ -93,11 +120,15 @@ $$
 \end{array}
 $$
 
+With fewer parameters to estimate, Bayesian inference will be easier.  This version is now the one implemented in the `deepgp` package (although this update is not on CRAN yet).
+
 ![](diagrams/Slide3.png)
 
-# Swapping $\tau^2$ and $\theta$ - what happens to the prior?
+# Swapping $\tau^2$ and $\theta$ - what happens in a regular GP?
 
-Notice, in the latent layer of the monowarp DGP, we have essentially fixed $\tau^2 = 1$ and allowed estimation of $\theta$.  Now we propose a SWAP.  Fix $\theta_x^d = 1$ for all $d=1,\dots,D$, but incorporate a $\tau^2_d$ parameter that may be estimated.  Our model is then:
+Notice, in the latent layer of the monowarp DGP, we have fixed $\tau^2 = 1$ and allowed estimation of $\theta$.  Now we propose a SWAP.  Fix $\theta_x^d$ for all $d=1,\dots,D$, but incorporate a $\tau^2_{w_d}$ parameter that may be estimated.  This $\tau^2_{w_d}$ parameter will facilitate variable selection as small values indicate little deviation from the prior (i.e., $\mathbf{w}_d = 0$ for small $\tau^2_{w_d}$).  In this section, we will investigate this idea and how it affects the prior distribution of the warpings.  We are hoping to get a good ``proof of concept.''
+
+For ease of notation, presume we fix $\theta_x = 1$, although we will later investigate appropriate values for this fixed parameter.  Our monowarp DGP model is then:
 
 $$
 \begin{array}{rl}
@@ -106,22 +137,18 @@ $$
 \end{array}
 $$
 
-Why is this so neat?  First, I have read [@zhang2004inconsistent] that in a one-dimensional (or isotropic) setting, only the ratio $\frac{\tau^2}{\theta}$ is identifiable.  The likelihood surface for these two variables is not conducive to optimizing.
+Why is this so neat?  First, I have read [@zhang2004inconsistent] that in a one-dimensional (or isotropic) setting, only the ratio $\frac{\tau^2}{\theta}$ is identifiable.  The likelihood surface for these two variables is not conducive to optimizing.  Hence our original decision for only estimating the lengthscale.  But we should be able to implement this ``swap'' and get similar behavior.
 
 ### Let's investigate
 
 To see this in action, let's create some random one-dimensional GP data and visualize the likelihood as a function of $\tau^2$ and $\theta$.
 
-```{r, fig.width = 5, fig.height = 4}
+```{r, fig.width = 10, fig.height = 5}
 x <- seq(0, 1, length = 10)
 dx <- sq_dist(x)
 y <- drop(rmvnorm(1, sigma = 1*exp(-dx/0.1)))
 y <- (y - mean(y))/sd(y) # scale to zero mean unit variance
 
-plot(x, y, main = "Toy data")
-```
-
-```{r, fig.width = 5, fig.height = 4}
 theta <- round(exp(seq(log(0.01), log(1), length = 50)), 3)
 tau2 <- round(seq(0.01, 10, length = 50), 3)
 logl <- matrix(nrow = length(theta), ncol = length(tau2))
@@ -130,15 +157,17 @@ for (i in 1:length(theta))
     logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
                                 g = 1e-6, v = 2.5)$ll
 
-image(theta, tau2, logl, col = heat.colors(128), main = "logl")
+par(mfrow = c(1, 2))
+plot(x, y, main = "Toy data")
+image(theta, tau2, logl, col = heat.colors(128), main = "GP logl")
 contour(theta, tau2, logl, add = TRUE)
 ```
 
-Certainly this surface is not conducive to numerical optimization.  Point made.
+This likelihood surface is not conducive to numerical optimization.  There is a ridge inside the zero contour, and most of the surface is flat.  This corroborates the claim that only the ratio is identifiable.
 
-But, if we fix a value of $\tau^2$, we can perform effective MLE on $\theta$.
+BUT, if we fix a value of $\tau^2$ as we did originally in the latent layers of the DGP, we can perform effective MLE on $\theta$.  The following code finds the maximum likelihood for three different fixed values of $\tau^2$ given the same toy data.
 
-```{r, fig.width = 10}
+```{r, fig.width = 10, fig.height = 4.5}
 theta <- round(exp(seq(log(0.01), log(1), length = 50)), 3)
 tau2 <- c(0.1, 1, 10)
 logl <- matrix(nrow = length(theta), ncol = length(tau2))
@@ -158,7 +187,7 @@ theta_for_tau2_1 <- theta[which.max(logl[, 2])] # save for later
 
 We get different vales for the MLE of $\theta$, but these problems are all identifiable.
 
-Can we do the same thing swapped?  Fix $\theta$ and estimate $\tau^2$?
+Can we do the same thing swapped?  Fix $\theta$ and estimate $\tau^2$?  This is the core of our novel idea.  The following code now shows the maximum likelihood for three different fixed values of $\theta$ given the same toy data.
 
 ```{r, fig.width = 10}
 theta <- c(0.01, 0.1, 1)
@@ -178,18 +207,18 @@ for (i in 1:length(theta)) {
 tau2_for_theta_0.01 <- tau2[which.max(logl[, 1])] # save for later
 ```
 
-So MLE is better behaved when we only estimate one of these parameters.  But how would this affect our statistical inferences?  Let's compare predictive surfaces.
+For full context, how would these different parameter values affect our statistical inferences?  Let's compare predictive surfaces.
 
 ```{r, fig.width = 10}
 x_new <- seq(0, 1, length = 100)
 dx_new <- sq_dist(x_new)
 dx_cross <- sq_dist(x_new, x)
 
-# First for tau2 = 1
+# First for fixed tau2 = 1
 p1 <- deepgp:::krig(y, dx, dx_new = dx_new, dx_cross = dx_cross, tau2 = 1, 
                    theta = theta_for_tau2_1, g = 1e-6, v = 2.5, mean = TRUE, s2 = TRUE)
 
-# Second, fix theta = 0.1
+# Second, for fixed theta = 0.1
 p2 <- deepgp:::krig(y, dx, dx_new = dx_new, dx_cross = dx_cross, tau2 = tau2_for_theta_0.01, 
                    theta = 0.1, g = 1e-6, v = 2.5, mean = TRUE, s2 = TRUE)
 
@@ -204,7 +233,117 @@ lines(x_new, p2$mean + 2*sqrt(p2$s2), lty = 2)
 points(x, y, pch = 20, col = 2)
 ```
 
-Posterior mean is essentially the same, but the larger $\tau^2$ value results in wider UQ intervals.  Things could go really poorly if $\theta$ is fixed too large or $\tau^2$ is fixed too small.  Typically, we pre-scale $y$ to unit variance anytime we fix $\tau^2=1$, so there is some justification for this choice.  Can we develop a rule for how to select a good value of $\theta$?  We will need to revisit this...
+Posterior mean is essentially the same, but the larger $\tau^2$ value results in wider UQ intervals.  
+
+There are some interesting things we can learn from this entire exercise.  Some relevant points:
+
+* If we fix $\tau^2$ at a value that is too small, then the MLE for $\theta$ will trend towards zero.  This is a numerical nightmare, and something we wish to avoid.  Typically, we pre-scale $y$ to unit variance anytime we fix $\tau^2=1$, so there is some justification for this choice. 
+* If we fix $\theta$ at a value that is too big, then the MLE for $\tau^2$ will tend towards $\infty$, which is also a nightmare.  Could we devise an objective way to determine a good fixed $\theta$ value?
+* Likelihood based inference for either of these parameters will only be effective if the fixed parameter is set at a reasonable value.
+
+I suspect that this phenomenon is closely related to the amount of training data present.  Likelihoods are naturally more peaky when there is a lot of data and more flat when there is little data.  To investigate, let's repeat this entire exercise but double the amount of training data.  (Code is suppressed since it is repeated from above).
+
+```{r, echo = FALSE, fig.width = 10, fig.height = 4.5}
+x <- seq(0, 1, length = 20)
+dx <- sq_dist(x)
+y <- drop(rmvnorm(1, sigma = 1*exp(-dx/0.1)))
+y <- (y - mean(y))/sd(y) # scale to zero mean unit variance
+
+theta <- round(exp(seq(log(0.01), log(1), length = 50)), 3)
+tau2 <- round(seq(0.01, 10, length = 50), 3)
+logl <- matrix(nrow = length(theta), ncol = length(tau2))
+for (i in 1:length(theta))
+  for (j in 1:length(tau2))
+    logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
+                                g = 1e-6, v = 2.5)$ll
+
+par(mfrow = c(1, 2))
+plot(x, y, main = "Toy data")
+image(theta, tau2, logl, col = heat.colors(128), main = "GP logl")
+contour(theta, tau2, logl, add = TRUE)
+
+theta <- round(exp(seq(log(0.01), log(1), length = 50)), 3)
+tau2 <- c(0.1, 1, 10)
+logl <- matrix(nrow = length(theta), ncol = length(tau2))
+for (i in 1:length(theta))
+  for (j in 1:length(tau2))
+      logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
+                                g = 1e-6, v = 2.5)$ll
+
+par(mfrow = c(1, 3))
+for (j in 1:length(tau2)) {
+  plot(theta, logl[, j], type = "l", main = paste0("tau2 = ", tau2[j]))
+  points(theta[which.max(logl[, j])], max(logl[, j]), pch = 17, col = 4, cex = 2)
+}
+
+theta <- c(0.01, 0.1, 1)
+tau2 <- round(seq(0.1, 10, length = 50), 3)
+logl <- matrix(nrow = length(theta), ncol = length(tau2))
+for (i in 1:length(theta))
+  for (j in 1:length(tau2))
+      logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
+                                g = 1e-6, v = 2.5)$ll
+
+par(mfrow = c(1, 3))
+for (i in 1:length(theta)) {
+  plot(tau2, logl[i, ], type = "l", main = paste0("theta = ", theta[i]))
+  points(tau2[which.max(logl[i, ])], max(logl[i, ]), pch = 17, col = 4, cex = 2)
+}
+```
+
+With more data, we have a bit more wiggle room in parameter values before we encounter bad likelihoods.
+
+What about with less data?  Let's try with half of the original training data.  (Code again suppressed).
+
+```{r, echo = FALSE, fig.width = 10, fig.height = 4.5}
+x <- seq(0, 1, length = 5)
+dx <- sq_dist(x)
+y <- drop(rmvnorm(1, sigma = 1*exp(-dx/0.1)))
+y <- (y - mean(y))/sd(y) # scale to zero mean unit variance
+
+theta <- round(exp(seq(log(0.01), log(1), length = 50)), 3)
+tau2 <- round(seq(0.01, 10, length = 50), 3)
+logl <- matrix(nrow = length(theta), ncol = length(tau2))
+for (i in 1:length(theta))
+  for (j in 1:length(tau2))
+    logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
+                                g = 1e-6, v = 2.5)$ll
+
+par(mfrow = c(1, 2))
+plot(x, y, main = "Toy data")
+image(theta, tau2, logl, col = heat.colors(128), main = "GP logl")
+contour(theta, tau2, logl, add = TRUE)
+
+theta <- round(exp(seq(log(0.01), log(1), length = 50)), 3)
+tau2 <- c(0.1, 1, 10)
+logl <- matrix(nrow = length(theta), ncol = length(tau2))
+for (i in 1:length(theta))
+  for (j in 1:length(tau2))
+      logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
+                                g = 1e-6, v = 2.5)$ll
+
+par(mfrow = c(1, 3))
+for (j in 1:length(tau2)) {
+  plot(theta, logl[, j], type = "l", main = paste0("tau2 = ", tau2[j]))
+  points(theta[which.max(logl[, j])], max(logl[, j]), pch = 17, col = 4, cex = 2)
+}
+
+theta <- c(0.01, 0.1, 1)
+tau2 <- round(seq(0.1, 10, length = 50), 3)
+logl <- matrix(nrow = length(theta), ncol = length(tau2))
+for (i in 1:length(theta))
+  for (j in 1:length(tau2))
+      logl[i, j] <- deepgp:::logl(y, dx, tau2 = tau2[j], theta = theta[i], 
+                                g = 1e-6, v = 2.5)$ll
+
+par(mfrow = c(1, 3))
+for (i in 1:length(theta)) {
+  plot(tau2, logl[i, ], type = "l", main = paste0("theta = ", theta[i]))
+  points(tau2[which.max(logl[i, ])], max(logl[i, ]), pch = 17, col = 4, cex = 2)
+}
+```
+
+With less data, we are there is a narrower range of fixed values that will keep us clear of an ill-behaved likelihood.
 
 ### How do these values affect a monowarping?
 
