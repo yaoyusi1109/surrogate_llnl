@@ -23,7 +23,7 @@ borehole <- function(x) {
 }
 
 d <- 8 
-n <- 300
+n <- 100
 x <- randomLHS(n, d)
 x <- cbind(x, runif(n))
 y <- borehole(x)
@@ -32,41 +32,34 @@ xp <- randomLHS(np, d)
 xp <- cbind(xp, runif(np))
 yp <- borehole(xp)
 
-# Regular monowarp DGP fit for context
-fit <- fit_two_layer(x, y, nmcmc = 3000, monowarp = TRUE, vecchia = TRUE)
+# Regular GP
+fit <- fit_one_layer(x, y, nmcmc = 3000, sep = TRUE)
 plot(fit)
 fit <- trim(fit, 1000, 20)
-plot(fit, trace = FALSE, hidden = TRUE)
 fit <- predict(fit, xp)
 
-# Swapped DGP
-fits <- fit_two_layer(x, y, nmcmc = 3000, swap = TRUE, vecchia = TRUE)
+# Varselect DGP
+fits <- fit_two_layer(x, y, nmcmc = 2000, varselect = TRUE)
 plot(fits)
-fits <- trim(fits, 1000, 2)
+par(mfrow = c(3, 3))
+for (i in 1:(d+1))
+  plot(fits$tau2_w[, i], type = "l")
+for (i in 1:(d+1))
+  plot(fits$theta_w[, i], type = "l")
+#fits <- trim(fits, 1000, 2)
 plot(fits, trace = FALSE, hidden = TRUE)
+# OK here all the tau2 are going to zero, this is a new problem
+# Perhaps we also need a lower bound on tau2????
 fits <- predict(fits, xp)
-
-# Swapped DGP with pmx
-fitsx <- fit_two_layer(x, y, nmcmc = 3000, swap = TRUE, pmx = TRUE)
-plot(fitsx)
-fitsx <- trim(fitsx, 1000, 2)
-plot(fitsx, trace = FALSE, hidden = TRUE)
-fitsx <- predict(fitsx, xp)
 
 plot(yp, fit$mean)
 points(yp, fits$mean, col = 2)
-points(yp, fitsx$mean, col = d)
 abline(0, 1)
 
 par(mfrow = c(1, 3))
 hist(sqrt(fit$s2))
 hist(sqrt(fits$s2))
-hist(sqrt(fitsx$s2))
 
 rmse(yp, fit$mean); crps(yp, fit$mean, fit$s2)
 rmse(yp, fits$mean); crps(yp, fits$mean, fits$s2)
-rmse(yp, fitsx$mean); crps(yp, fitsx$mean, fitsx$s2)
 
-# The fits are the same, doing great!  But the hyperparameters are just crazily scaled
-# What can we do to keep the scale in check?
-# If the tau2 values get too small, we will lose numerical stability
