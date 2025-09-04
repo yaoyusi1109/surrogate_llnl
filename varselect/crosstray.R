@@ -1,7 +1,12 @@
 
+source("functions.R")
 library(deepgp)
 library(lhs)
 set.seed(1)
+
+# Works great with n = 50 random LHS
+# with n = 20, we get an error with the monowarp version
+# SOLUTION: force an upper bound on tau2_w of 1
 
 f <- function(x) {
   x <- x*4 - 2
@@ -32,198 +37,81 @@ contour(grid, grid, matrix(yy, ncol = length(grid)), add = TRUE)
 # Fits with only two important inputs -----------------------------------------
 
 # regular GP
-fit0 <- fit_one_layer(x, y, nmcmc = 5000, true_g = 1e-6, sep = TRUE)
+fit0 <- fit_one_layer(x, y, nmcmc = 5000, sep = TRUE)
 plot(fit0)
 fit0 <- trim(fit0, 3000, 2)
 fit0 <- predict(fit0, xx, lite = TRUE)
 plot(fit0)
 
 # monowarp DGP
-fit1 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, true_g = 1e-6)
+fit1 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE)
 plot(fit1, trace = TRUE, hidden = TRUE)
 fit1 <- trim(fit1, 3000, 2)
 fit1 <- predict(fit1, xx, lite = TRUE)
 plot(fit1)
 
-# swapped monowarp DGP, theta = 1
-fit2 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 1))
+# varselect monowarp DGP
+fit2 <- fit_two_layer(x, y, nmcmc = 5000, varselect = TRUE)
 plot(fit2, trace = TRUE, hidden = TRUE)
+# Ok, what if we just put a cap on tau2?
+#par(mfrow = c(2, 2))
+#plot(fit2$tau2_w[, 1], type = "l")
+#plot(fit2$tau2_w[, 2], type = "l")
+#plot(fit2$theta_w[, 1], type = "l")
+#plot(fit2$theta_w[, 2], type = "l")
+# The tau2 values go off the chain, but the theta values stay fine
+#matplot(fit2$x_grid[, 1], t(fit2$w_grid[, , 1]), type = "l")
+#matplot(fit2$x_grid[, 2], t(fit2$w_grid[, , 2]), type = "l")
+#matplot(x[order(x[, 1]), 1], t(fit2$w[, order(x[, 1]), 1]), type = "l")
+#matplot(x[order(x[, 2]), 2], t(fit2$w[, order(x[, 2]), 2]), type = "l")
 fit2 <- trim(fit2, 3000, 2)
 fit2 <- predict(fit2, xx, lite = TRUE)
 plot(fit2)
 
-# swapped monowarp DGP, theta = 0.1
-fit3 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 0.1))
-plot(fit3, trace = TRUE, hidden = TRUE)
-fit3 <- trim(fit3, 3000, 2)
-fit3 <- predict(fit3, xx, lite = TRUE)
-plot(fit3)
-
-# swapped monowarp DGP, theta = 0.01
-fit4 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 0.01))
-plot(fit4, trace = TRUE, hidden = TRUE)
-fit4 <- trim(fit4, 3000, 2)
-fit4 <- predict(fit4, xx, lite = TRUE)
-plot(fit4)
-
-# swapped monowarp DGP, theta = 0.01
-fit5 <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 0.001))
-plot(fit5, trace = TRUE, hidden = TRUE)
-fit5 <- trim(fit5, 3000, 2)
-fit5 <- predict(fit5, xx, lite = TRUE)
-plot(fit5)
-
-save(fit0, fit1, fit2, fit3, fit4, file = "crosstray_2d_fits.RData")
-
-# How do these fits compare? --------------------------------------------------
-
-load("crosstray_2d_fits.RData")
-
-results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01", "msDGP_0.001"),
+# How do these fits compare? 
+results <- data.frame("model" = c("GP", "mDGP", "vDGP"),
                       "rmse" = c(rmse(yy, fit0$mean),
                                  rmse(yy, fit1$mean),
-                                 rmse(yy, fit2$mean),
-                                 rmse(yy, fit3$mean),
-                                 rmse(yy, fit4$mean),
-                                 rmse(yy, fit5$mean)),
+                                 rmse(yy, fit2$mean)),
                       "crps" = c(crps(yy, fit0$mean, fit0$s2),
                                  crps(yy, fit1$mean, fit1$s2),
-                                 crps(yy, fit2$mean, fit2$s2),
-                                 crps(yy, fit3$mean, fit3$s2),
-                                 crps(yy, fit4$mean, fit4$s2),
-                                 crps(yy, fit5$mean, fit5$s2)))
-
-par(mfrow = c(1, 2), mar = c(7, 5, 2, 2))
-plot(1:6, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
-axis(1, 1:6, labels = results$model, las = 2)
-plot(1:6, results$crps, xaxt = "n", ylab = "CRPS", xlab = "")
-axis(1, 1:6, labels = results$model, las = 2)
-
-# Zoom in on fit1 (the original monoDGP) and fit3 (the "default" swapped monowarp DGP)
-plot(fit1, trace = TRUE, predict = FALSE)
-plot(fit4, trace = TRUE, predict = FALSE)
-# All these values are reasonable
+                                 crps(yy, fit2$mean, fit2$s2)))
+results
 
 # Fits with a third dummy variable --------------------------------------------
 
 # regular GP
-fit0 <- fit_one_layer(xdummy, y, nmcmc = 5000, true_g = 1e-6, sep = FALSE)
+fit0 <- fit_one_layer(xdummy, y, nmcmc = 5000, sep = TRUE)
 plot(fit0) 
 fit0 <- trim(fit0, 3000, 2)
 fit0 <- predict(fit0, xxdummy, lite = TRUE)
 
 # monowarp DGP
-fit1 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, true_g = 1e-6)
-plot(fit1, trace = TRUE, hidden = TRUE) # thid warping is linear, relatively flat
+fit1 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE)
+plot(fit1, trace = TRUE, hidden = TRUE)
 fit1 <- trim(fit1, 3000, 2)
 fit1 <- predict(fit1, xxdummy, lite = TRUE)
 
-# swapped monowarp DGP, theta = 1
-fit2 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 1))
+# varselect monowarp DGP
+fit2 <- fit_two_layer(xdummy, y, nmcmc = 5000, varselect = TRUE)
 plot(fit2, trace = TRUE, hidden = TRUE)
 fit2 <- trim(fit2, 3000, 2)
 fit2 <- predict(fit2, xxdummy, lite = TRUE)
 
-# swapped monowarp DGP, theta = 0.1
-fit3 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 0.1))
-plot(fit3, trace = TRUE, hidden = TRUE)
-fit3 <- trim(fit3, 3000, 2)
-fit3 <- predict(fit3, xxdummy, lite = TRUE)
+# How do these fits compare?
+results_dummy <- data.frame("model" = c("GP", "mDGP", "vDGP"),
+                            "rmse" = c(rmse(yy, fit0$mean),
+                                       rmse(yy, fit1$mean),
+                                       rmse(yy, fit2$mean)),
+                             "crps" = c(crps(yy, fit0$mean, fit0$s2),
+                                        crps(yy, fit1$mean, fit1$s2),
+                                        crps(yy, fit2$mean, fit2$s2)))
+results
+results_dummy
+# The fits without the 3rd dummy variable did a bit better
+# If we could decide to remove the 3rd one, we could refit without it
 
-# swapped monowarp DGP, theta = 0.01
-fit4 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 0.01))
-plot(fit4, trace = TRUE, hidden = TRUE)
-fit4 <- trim(fit4, 3000, 2)
-fit4 <- predict(fit4, xxdummy, lite = TRUE)
-
-# swapped monowarp DGP, theta = 0.001
-fit5 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE, 
-                      true_g = 1e-6, settings = list(theta_w = 0.001))
-plot(fit5, trace = TRUE, hidden = TRUE)
-fit5 <- trim(fit5, 3000, 2)
-fit5 <- predict(fit5, xxdummy, lite = TRUE)
-
-save(fit0, fit1, fit2, fit3, fit4, fit5, file = "crosstray_3d_fits.RData")
-
-# How do these fits compare? --------------------------------------------------
-
-load("crosstray_3d_fits.RData")
-
-results <- data.frame("model" = c("GP", "mDGP", "msDGP_1", "msDGP_0.1", "msDGP_0.01", "msDGP_0.001"),
-                      "rmse" = c(rmse(yy, fit0$mean),
-                                 rmse(yy, fit1$mean),
-                                 rmse(yy, fit2$mean),
-                                 rmse(yy, fit3$mean),
-                                 rmse(yy, fit4$mean),
-                                 rmse(yy, fit5$mean)),
-                      "crps" = c(crps(yy, fit0$mean, fit0$s2),
-                                 crps(yy, fit1$mean, fit1$s2),
-                                 crps(yy, fit2$mean, fit2$s2),
-                                 crps(yy, fit3$mean, fit3$s2),
-                                 crps(yy, fit4$mean, fit4$s2),
-                                 crps(yy, fit5$mean, fit5$s2)))
-
-par(mfrow = c(1, 2), mar = c(7, 5, 2, 2))
-plot(1:6, results$rmse, xaxt = "n", ylab = "RMSE", xlab = "")
-axis(1, 1:6, labels = results$model, las = 2)
-plot(1:6, results$crps, xaxt = "n", ylab = "CRPS", xlab = "")
-axis(1, 1:6, labels = results$model, las = 2)
-
-# Zoom in on fit1 (regular monowarp DGP) and fit4 (best swap monowarp DGP)
-plot(fit1, trace = TRUE, predict = FALSE) # no easy decision rule...
-plot(fit4, trace = TRUE, predict = FALSE) # clear decision rule!
-
-# What about the posterior of tau2? -------------------------------------------
-
-library(invgamma)
-library(viridis)
-col <- viridis(50)
-
-fit <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, swap = TRUE,
-                     true_g = 1e-6)
-fit <- trim(fit, 3000, 2)
-
-dx <- sq_dist(fit$x_grid)
-alpha <- n/2
-tau2_grid <- seq(0, 2, length = 100)
-
-# Notice, we can re-write the beta parameter as a function of tau2_w, which is already stored
-beta <- fit$tau2_w*n/2
-
-# First, what does the progress in the posterior distribution of each tau2 look like?
-par(mfrow = c(1, 3))
-for (d in 1:3) {
-  col_indx <- 1
-  for (t in floor(seq(1, fit$nmcmc, length = 50))) {
-    dens <- dinvgamma(tau2_grid, shape = alpha, rate = beta[t, d])
-    if (t == 1) {
-      plot(tau2_grid, dens, 
-           col = col[1], type = "l", xlab = "tau2_w", ylab = "Density", 
-           main = paste0("Dimension ", d), ylim = c(0, 4))
-    } else {
-      lines(tau2_grid, dens, col = col[col_indx])
-    }
-    col_indx <- col_indx + 1
-  }
-}
-
-# Second, what is the upper 99% bound on each tau2?
-upper99 <- qinvgamma(0.99, shape = alpha, rate = beta)
-
-par(mfrow = c(1, 3))
-for (d in 1:3) {
-  plot(upper99[, d], type = "l",
-       xlab = "MCMC iteration", ylab = "Upper 95% quantile for tau2",
-       main = paste0("Dimension", d), ylim = c(0, 2))
-}
-
-sort(apply(upper99, 2, mean), decreasing = TRUE)
-sort(apply(upper99, 2, median), decreasing = TRUE)
+# Posterior of tau2_w
+plot_tau2(fit2)
+summarize_tau2(fit2)
 
