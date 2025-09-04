@@ -22,7 +22,7 @@ library(lhs)
 source("functions.R")
 
 d <- 3
-n <- 30
+n <- 50
 
 gfunc <- function(x, a = (1:d - 1)/2) {
   if (!is.matrix(x)) x <- as.matrix(x)
@@ -37,18 +37,45 @@ a <- c(0, 1, 99)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
 
-fit <- fit_two_layer(x, y, nmcmc = 50, swap = TRUE,
-                     settings = list(theta_w = 0.000001)) 
-plot(fit, hidden = TRUE)
+fit <- fit_two_layer(x, y, nmcmc = 5000, varselect = TRUE)
+fit$settings$swap = TRUE
+plot(fit)
+par(mfrow = c(1, 3))
+plot(fit$theta_w[, 1], type = "l")
+plot(fit$theta_w[, 2], type = "l")
+plot(fit$theta_w[, 3], type = "l")
+
+# fit <- trim(fit, 3000, 5)
+
+par(mfrow = c(1, 3))
+for (i in 1:3) {
+  o <- order(x[, i])
+  matplot(x[o, i], t(fit$w[, o, i]), type = "l")
+}
+
+for (i in 1:3) {
+  matplot(fit$x_grid[, i], t(fit$w_grid[, , i]), type = "l")
+}
+
+# The prior mean is zero, why are we getting such high and low samples???
+ng <- nrow(fit$x_grid)
+xdmat_grid <- array(dim = c(ng, ng, D))
+for (i in 1:D) xdmat_grid[, , i] <- sq_dist(fit$x_grid[, i])
+grid_index <- deepgp:::fo_approx_init(x_grid, x)
+sigma <- Matern(xdmat_grid[, , 1], tau2 = fit$tau2_w[1, 1], theta = fit$theta_w[1, 1], 
+                g = eps, v = 2.5)
+w_grid_prior <- mvtnorm::rmvnorm(100, mean = rep(0, times = ng), sigma = sigma)
+
+matplot(fit$x_grid, t(w_grid_prior), type = "l")
+matplot(fit$x_grid, t(w_grid_prior * 0.5), type = "l")
+
+
+K <- Matern(xdmat_grid[, , i], 1, theta_w[j, i], eps, v) 
 
 
 
 
-# When you have less data, problems happen all over the place
-# Works with n = 50
-# Error with n = 30
-plot(fit, hidden = TRUE)
-fit <- trim(fit, 3000, 2)
+
 plot_tau2(fit)
 summarize_tau2(fit)
 

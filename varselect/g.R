@@ -7,7 +7,7 @@ source("functions.R")
 # Here, we test out several variations on this function in 3 dimensions
 
 d <- 3
-n <- 30
+n <- 50
 
 gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
   if (!is.matrix(x)) x <- as.matrix(x)
@@ -25,9 +25,23 @@ a <- c(0, 0, 99)
 x <- randomLHS(n, d)
 y <- gfunc(x, a)
 
-fit1 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE)
-plot(fit1, hidden = TRUE)
-fit1 <- trim(fit1, 3000, 2)
+fit1 <- fit_two_layer(x, y, nmcmc = 1000, swap = TRUE)
+par(mfrow = c(1, 3)) 
+for (i in 1:d) {
+  plot(fit1$tau2_w[,i], type = "l")
+}
+for (i in 1:d) {
+  plot(fit1$theta_w[,i], type = "l")
+}
+
+
+#plot(fit1, hidden = TRUE)
+par(mfrow = c(1, 3))
+for (i in 1:3) {
+  o <- order(x[, i])
+  matplot(x[o, i], t(fit1$w[, o, i]), type = "l", ylim = c(min(fit1$w), max(fit1$w)))
+}
+fit1 <- trim(fit1, 500)
 plot_tau2(fit1)
 summarize_tau2(fit1)
 
@@ -39,6 +53,12 @@ y <- gfunc(x, a)
 
 fit2 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE) # nugget a bit high, but still works
 plot(fit2, hidden = TRUE)
+par(mfrow = c(1, 3))
+for (i in 1:3) {
+  o <- order(x[, i])
+  matplot(x[o, i], t(fit3$w[, o, i]), type = "l")
+}
+
 fit2 <- trim(fit2, 3000, 2)
 plot_tau2(fit2)
 summarize_tau2(fit2)
@@ -52,6 +72,12 @@ y <- gfunc(x, a)
 fit3 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE, true_g = 1e-6) 
 # TODO: stop this converging to flat
 plot(fit3, hidden = TRUE)
+par(mfrow = c(1, 3))
+for (i in 1:3) {
+  o <- order(x[, i])
+  matplot(x[o, i], t(fit3$w[, o, i]), type = "l")
+}
+
 fit3 <- trim(fit3, 3000, 2)
 plot_tau2(fit3)
 summarize_tau2(fit3)

@@ -1,8 +1,8 @@
 ---
-title: "Year 1 Quarter 1"
+title: "ACT Progress Report: Year 1 Quarter 1"
 date: "May 15, 2025 - August 15, 2025"
 author: "Annie Booth"
-bibliography: ../ref.bib 
+bibliography: ref.bib 
 output: pdf_document
 ---
 
@@ -10,12 +10,34 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
 ```
 
+### Abstract
+
+In the first quarter of Year 1, PI Annie Booth (Virginia Tech) worked collaboratively with Kevin Quinlan and Laura Wendelberger (LLNL) to develop methodology for deep Gaussian surrogates with large input dimensions.  Our general aims are two-fold: develop methodology for variable selection and dimension reduction through latent manifolds.  This quarter the team focused on the variable selection problem, proposing a novel Bayesian hierarchical model for the deep Gaussian process prior that will facilitate variable selection.  Methods were explored and validated on toy problems, and software was developed to integrate and implement new methodologies.  Results are promising, achieving strong performance on toy problems with adequate training data, but more work is needed to address limited data scenarios.
+
+### Summary of Objectives
+
+Objective 1: Provide research plans to LLNL and suggestions for each quarters activities to be approved by LLNS.
+
+* PI Booth worked with the LLNL team to restructure the year 1 budget to support her direct efforts on the project this quarter in leui of a graduate student.  In the second quarter, PI Booth will continue her efforts in searching for a graduate student from the Department of Statistics at Virginia Tech to work on this project.  PI Booth's focus for quarters 1-2 will be on variable selection.  The future GRA's focus starting in quarter 3 will be on dimension reduction.
+
+Objective 2: Perform methodological development of Bayesian DGP emulator models for variable selection and learning of lower dimensional manifolds.
+
+* Technical details of methodological and software developments are provided in the remainder of this document.
+
+### Publications
+
+There are no publications of this work yet.
+
+******
+
+# Technical Details
+
 ```{r}
 library(deepgp)
 library(mvtnorm)
+library(lhs)
+library(invgamma)
 ```
-
-This document serves as a progress report for our work on our Academic Collaboration Team project.  Our focus this quarter has been on variable selection methods for deep Gaussian process surrogates.
 
 # Previous works
 
@@ -51,7 +73,7 @@ In this framework, there are two avenues for "de-selecting" an input.
 
 * @linkletter2006variable: Places a mixture model prior on the lengthscale parameters with a point mass on zero.  This method is called "reference distribution variable selection."
 * @joseph2008blind: Perform variable selection only in the $X\beta$ mean term.  This method is called "blind kriging."
-* @zhang2023indicator: Uses indicator functions to turn variables on/off.  If the indicator is zero, then the $\beta_i$ parameter in the $X\beta$ mean AND the $\theta_i$ parameter in the separable covariance are zero.  Note, to set $\theta$ equal to zero, we must put it in the numerator of the kernel.  This is considered the ``state-of-the-art'' at this time.
+* @zhang2023indicator: Uses indicator functions to turn variables on/off.  If the indicator is zero, then the $\beta_i$ parameter in the $X\beta$ mean AND the $\theta_i$ parameter in the separable covariance are zero.  Note, to set $\theta$ equal to zero, we must put it in the numerator of the kernel.  This is considered the "state-of-the-art" at this time.
 
 ### Software Implementation
 
@@ -102,13 +124,13 @@ $$
 \mathbf{w}_d &\sim\mathrm{monoGP}\left(0,\; K_{\theta_x^d}(\mathbf{x}_d) \right) \quad d=1,\dots,D
 \end{array}
 $$
-where kernels $K(\cdot)$ are defined as above, and each $\mathbf{w}_d$ is forced to be monotonic.  To get this ``monoGP,'' we used a cumulative sum transformation of random draws from the GP prior.  It is also possible to have each $\mathbf{w}_d$ with a prior mean of $\mathbf{x}_d$ instead of 0.
+where kernels $K(\cdot)$ are defined as above, and each $\mathbf{w}_d$ is forced to be monotonic.  To get this "monoGP" we used a cumulative sum transformation of random draws from the GP prior.  It is also possible to have each $\mathbf{w}_d$ with a prior mean of $\mathbf{x}_d$ instead of 0.
 
 ![](diagrams/Slide2.png)
 This monowarped DGP may be fit by providing the argument `monowarp = TRUE` to the `fit_two_layer` function:
 
 ```{r, eval = FALSE}
-fit <- fit_two_layer(x, y, nmcmc = 10000, monwarp = TRUE)
+fit <- fit_two_layer(x, y, nmcmc = 10000, monowarp = TRUE)
 ```
 
 To streamline things, I have developed a work-around to avoid separable lengthscales on the outer layer (by removing forced scaling of each warping).  We can then have the simpler model:
@@ -126,7 +148,7 @@ With fewer parameters to estimate, Bayesian inference will be easier.  This vers
 
 # Swapping $\tau^2$ and $\theta$ - what happens in a regular GP?
 
-Notice, in the latent layer of the monowarp DGP, we have fixed $\tau^2 = 1$ and allowed estimation of $\theta$.  Now we propose a SWAP.  Fix $\theta_x^d$ for all $d=1,\dots,D$, but incorporate a $\tau^2_{w_d}$ parameter that may be estimated.  This $\tau^2_{w_d}$ parameter will facilitate variable selection as small values indicate little deviation from the prior (i.e., $\mathbf{w}_d = 0$ for small $\tau^2_{w_d}$).  In this section, we will investigate this idea and how it affects the prior distribution of the warpings.  We are hoping to get a good ``proof of concept.''
+Notice, in the latent layer of the monowarp DGP, we have fixed $\tau^2 = 1$ and allowed estimation of $\theta$.  Now we propose a SWAP.  Fix $\theta_x^d$ for all $d=1,\dots,D$, but incorporate a $\tau^2_{w_d}$ parameter that may be estimated.  This $\tau^2_{w_d}$ parameter will facilitate variable selection as small values indicate little deviation from the prior (i.e., $\mathbf{w}_d = 0$ for small $\tau^2_{w_d}$).  In this section, we will investigate this idea and how it affects the prior distribution of the warpings.  We are hoping to get a good "proof of concept."
 
 For ease of notation, presume we fix $\theta_x = 1$, although we will later investigate appropriate values for this fixed parameter.  Our monowarp DGP model is then:
 
@@ -137,7 +159,7 @@ $$
 \end{array}
 $$
 
-Why is this so neat?  First, I have read [@zhang2004inconsistent] that in a one-dimensional (or isotropic) setting, only the ratio $\frac{\tau^2}{\theta}$ is identifiable.  The likelihood surface for these two variables is not conducive to optimizing.  Hence our original decision for only estimating the lengthscale.  But we should be able to implement this ``swap'' and get similar behavior.
+Why is this so neat?  First, I have read [@zhang2004inconsistent] that in a one-dimensional (or isotropic) setting, only the ratio $\frac{\tau^2}{\theta}$ is identifiable.  The likelihood surface for these two variables is not conducive to optimizing.  Hence our original decision for only estimating the lengthscale.  But we should be able to implement this "swap" and get similar behavior.
 
 ### Let's investigate
 
@@ -343,11 +365,11 @@ for (i in 1:length(theta)) {
 }
 ```
 
-With less data, we are there is a narrower range of fixed values that will keep us clear of an ill-behaved likelihood.
+With less data, there is a narrower range of fixed values that will keep us clear of an ill-behaved likelihood.
 
-### How do these values affect a monowarping?
+# Swapping $\tau^2$ and $\theta$ - how does it affect our prior on the warping?
 
-We want to be confident that fixing $\theta$ and estimating $\tau^2$ will give us the same flexibility in our monotonic warpings.  We need to be cautious of fixing $\theta$ too large.
+We want to be confident that fixing $\theta$ and estimating $\tau^2$ will give us the same flexibility in our DGP latent warpings.  We need to be cautious of fixing $\theta$ too large.
 
 Let's investigate what our monowarp GP prior looks like for both of these situations - we want to make sure we have the same prior flexibility under the two different parameterizations.
 
@@ -376,8 +398,6 @@ for (tau2 in c(0.01, 0.1, 1, 10)) {
   }
 }
 ```
-
-\newpage
 
 What do we see?
 
@@ -444,7 +464,7 @@ $$
 \end{aligned}
 $$
 
-We may use this simplified profile likelihood to conduct inference in our outer layer ($W$ and $\theta_y$).  But!  Note we did not just fix $\tau^2$ to one.  So when we conduct inference this way, we need to be careful of how we treat $\tau^2$ in our predictions.  For an ESS samaple of $W$, and a mapping of predictive locations $\mathcal{X}$ to warped locations $\mathcal{W}$, we have:
+We may use this simplified profile likelihood to conduct inference in our outer layer ($W$ and $\theta_y$).  But!  Note we did not just fix $\tau^2$ to one.  So when we conduct inference this way, we need to be careful of how we treat $\tau^2$ in our predictions.  For an ESS sample of $W$, and a mapping of predictive locations $\mathcal{X}$ to warped locations $\mathcal{W}$, we have:
 
 $$
 \mathbf{y}^\star \mid \mathbf{y}, W \sim \mathrm{GP}(\mu^\star, \Sigma^\star)
@@ -532,11 +552,73 @@ $$
 \hat{\tau}^2_w = \frac{1}{n}\mathbf{w}_d^\top K^{-1} \mathbf{w}_d
 $$
 
-In the `deepgp` package, I have coded up storage of $\hat{\tau}^2_w$ as `tau2_w`.  Thus, any calculations of this posterior distribution can be simple post-processing of the quantites that are alreay stored.
+In the `deepgp` package, I have coded up storage of $\hat{\tau}^2_w$ as `tau2_w`.  Thus, any calculations of this posterior distribution can be simple post-processing of the quantites that are already stored.
 
 Second, after exploring various options, I decided to set the default as $\theta_w = 0.01$.
 
 Also note, that in the monowarp DGP implementation, all of the computations for the inner layer are done on the GRID values.  So data sizes are kept small, and fits are very fast.
+
+# Validation on a toy problem
+
+I have coded all these things into the `deepgp` package.  Let's see it in action on a toy problem, specifically the ``G function.''
+
+```{r}
+gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
+  if (!is.matrix(x)) x <- as.matrix(x)
+  n <- nrow(x)
+  d <- ncol(x)
+  prod <- rep(1, times = n)
+  for (i in 1:d)
+    prod <- prod * (abs(4*x[, i] - 2) + a[i]) / (1 + a[i])
+  return(prod)
+}
+```
+
+The `a` parameter controls how relevant each input is (small values are very important, large values are not).  Let's start with 50 observations in 3 dimensions, with the third input unimportant.
+
+```{r}
+d <- 3
+n <- 50
+a <- c(0, 0, 99)
+x <- randomLHS(n, d)
+y <- gfunc(x, a)
+```
+
+We then fit a two-layer DGP with the argument `swap = TRUE` to trigger our new implementation.
+
+```{r}
+fit1 <- fit_two_layer(x, y, nmcmc = 5000, swap = TRUE, verb = FALSE)
+plot(fit1, hidden = TRUE)
+```
+Notice, the warpings successfully learned that the third input was not important, mapping it to zero.  This is also reflected in the trace plot of the $\tau^2$ values.
+
+After trimming off burn-in, we can use the posterior distribution of $\tau^2$ to plot the upper 99\% quantile of this parameter for each latent dimension
+
+```{r, fig.height = 4}
+fit1 <- trim(fit1, 3000, 2)
+
+alpha <- n/2
+beta <- fit1$tau2_w*n/2
+upper <- qinvgamma(0.99, shape = alpha, rate = beta)
+par(mfrow = c(1, d), mar = c(5, 4, 2, 2))
+for (i in 1:d) 
+  plot(upper[, i], type = "l", ylim = c(0, max(upper)),
+        xlab = "Iteration", ylab = "Upper quantile of tau2",
+        main = paste0("Dimension", i))
+```
+
+Success!  We have effectively identified the important and unimportant inputs.
+
+# Next Steps
+
+I have noticed odd behavior when data sizes are very low.  Without enough data, the likelihood is poorly behaved (as we saw above), and the samples trend too infinity.  This causes numerical issues and errors.  Although the method is working very well for larger data sizes, we need to tweak it so it is robust to these circumstances.
+
+Ideas to try:
+
+* Could we do regular GP warpings instead of monotonic ones?  These might be more safeguarded against numerical instability?  
+* Can we change the prior on $\tau^2$ so it is proper and more restrictive?  Perhaps the improper prior is driving these issues.
+
+After these bugs are worked out, we will be ready to deploy our method and the two competitors on a variety of synthetic exercises.
 
 -------
 # References
