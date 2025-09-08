@@ -10,10 +10,12 @@ plot_tau2 <- function(fit, p = 0.01) {
   if (d > 4) {
     par(mfrow = c(2, ceiling(nplots/2)), mar = c(5, 4, 2, 2))
   } else par(mfrow = c(1, d), mar = c(5, 4, 2, 2))
-  for (i in 1:d) 
+  for (i in 1:d) {
     plot(upper[, i], type = "l", ylim = c(0, max(upper)),
          xlab = "Iteration", ylab = "Upper quantile of tau2",
          main = paste0("Dimension", i))
+    abline(h = 1e-4, col = 2)
+  }
 }
 
 summarize_tau2 <- function(fit, p = 0.01) {
