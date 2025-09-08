@@ -7,7 +7,7 @@ x <- as.matrix(seq(0, 1, length = 50))
 xdmat <- sq_dist(x)
 
 # Draw from a GP prior
-w <- t(rmvnorm(samples, sigma = 0.1*exp(-xdmat/1)))
+w <- t(rmvnorm(samples, sigma = 0.1*exp(-xdmat/0.01)))
 
 par(mfrow = c(1, 3))
 matplot(x, w, type = "l")

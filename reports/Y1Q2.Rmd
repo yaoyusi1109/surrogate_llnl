@@ -1,0 +1,94 @@
+---
+title: "ACT Progress Report: Year 1 Quarter 2"
+date: "August 15, 2025 - December 15, 2025"
+author: "Annie Booth"
+bibliography: ref.bib 
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+```
+
+### Abstract
+
+### Summary of Objectives
+
+Objective 1: Provide research plans to LLNL and suggestions for each quarters activities to be approved by LLNS.
+
+Objective 2: Perform methodological development of Bayesian DGP emulator models for variable selection and learning of lower dimensional manifolds.
+
+### Publications
+
+There are no publications of this work yet.
+
+******
+
+# Technical Details
+
+```{r}
+library(deepgp)
+library(mvtnorm)
+library(lhs)
+library(invgamma)
+```
+
+Running simulations with our previous method, I encountered many issues.
+
+* I implemented estimated of both tau2 and theta on latent layers.  It was very hard
+to figure out a good fixed theta value.  Not sure if estimating both is the right thing to do just yet though.  It still contributes to flat likelihoods.
+* Occasionally the scale estimates would run to infinity.  I "band-aid" fixed this
+by setting an upper bound of 1.
+* Occasionally the scale estimates would run to zero.  The predictions were working fine, there was just no control on the scale.  Everything shrunk together, so the fits were the same.  But not pretty or useful for thresholding the parameters.  Couldn't seem to adjust this with priors - the prior did not have enough control.
+
+Then - viola!  I figured out a new and better way to monotonically warp samples from the GP prior.  Let's investigate.
+
+OLD way of monotonically warping:
+
+```{r}
+x <- matrix(seq(0, 1, length = 100), ncol = 1)
+dx <- sq_dist(x)
+x_grid <- matrix(seq(0, 1, length = 50), ncol = 1)
+dx_grid <- sq_dist(x_grid)
+grid_index <- deepgp:::fo_approx_init(x_grid, x)
+```
+
+```{r, fig.width = 10, fig.height = 3}
+r <- 15
+for (tau2 in c(0.01, 0.1, 1, 10)) {
+  par(mfrow = c(1, 4), mar = c(4, 4, 4, 1))
+  for (theta in c(0.01, 0.1, 1, 10)) {
+    w_grid <- t(rmvnorm(r, sigma = tau2*exp(-dx_grid/theta)))
+    w <- matrix(nrow = nrow(x), ncol = r)
+    for (i in 1:r) {
+      w[, i] <- deepgp:::monowarp_ref(x, x_grid, w_grid[, i], grid_index)
+      w[, i] <- (w[, i] - mean(w[, i]))
+    }
+    matplot(x, w, type = "l", main = paste0("tau2 = ", tau2, "\n theta = ", theta,
+                                            "\n ratio = ", tau2/theta))
+  }
+}
+```
+
+NEW way of monotonically warping:
+
+```{r, fig.width = 10, fig.height = 3}
+r <- 15
+for (tau2 in c(0.01, 0.1, 1, 10)) {
+  par(mfrow = c(1, 4), mar = c(4, 4, 4, 1))
+  for (theta in c(0.01, 0.1, 1, 10)) {
+    wo <- t(rmvnorm(r, sigma = tau2*exp(-dx/theta)))
+    w <- matrix(nrow = nrow(x), ncol = r)
+    for (i in 1:r) {
+      w[, i] <- c(0, cumsum(abs(diff(wo[, i]))))
+      w[, i] <- (w[, i] - mean(w[, i]))
+    }
+    matplot(x, w, type = "l", main = paste0("tau2 = ", tau2, "\n theta = ", theta,
+                                            "\n ratio = ", tau2/theta))
+  }
+}
+```
+
+Smaller theta = more linear.  Smaller tau2 = more flat.
+
+Even better?... it looks like we can fix tau2 at 1 and let theta do all the work???
