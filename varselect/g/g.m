@@ -3,7 +3,7 @@ addpath('~/Competitors/variable_selection')
 addpath('~/MATLAB_pkgs/ooDACE-1.4/ooDACE')
 
 d = 3;
-n = 50;
+n = 100;
 a = [0, 0, 99];
 reps = 30;
 
@@ -51,5 +51,5 @@ for seed = 1:reps
 
 end
 
-writetable(zhang_results, "zhang_results.csv");
-writetable(bk_results, "bk_results.csv");
+writetable(zhang_results, 'results/zhang_n'+string(n)+'.csv');
+writetable(bk_results, 'results/bk_n'+string(n)+'.csv');

@@ -15,11 +15,10 @@ bk_results = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
 
 for seed = 1:reps
   rng(seed)
-
   x = lhsdesign(n, d);
   y = gfunc(x, a);
 
-  % Fan Zhang method 
+  % Zhang method 
   results = Indicator_based_bayesian_vs_gp(x, y, ...
       'lambda', 1, ... % default 1
       'tau', 1, ... % default 1
@@ -31,7 +30,7 @@ for seed = 1:reps
       'verbose', 1);
   zhang_results{seed, :} = [seed, results.active_prob > 0.5];
 
-  % Blind Kriging method ----------------------------------------------------
+  % Blind Kriging method 
   % code copied from demo in ooDACE toolbox
   opts = BlindKriging.getDefaultOptions();
   theta0 = zeros(1,d);
@@ -43,15 +42,14 @@ for seed = 1:reps
   opts.regressionMaxLevelInteractions = 2;
   blindKrige = BlindKriging(opts, theta0, 'regpoly0', @corrgauss);
   blindKrige = blindKrige.fit(x, y);
-	
-[dummy regrFunc terms] = blindKrige.regressionFunction(struct('includeCoefficients', false));
+  [dummy, regrFunc, terms] = blindKrige.regressionFunction(struct('includeCoefficients', false));
 
-for i = 1:d
-  disp(contains(regrFunc, 'x' + string(i)))
+  bk_results.seed(seed) = seed;
+  for j = 1:d
+    bk_results{seed, j+1} = contains(regrFunc, 'x' + string(j));
+  end
+
 end
 
-
-end
-
-
-%bk_predy = blindKrige.predict(xp);
+writetable(zhang_results, "zhang_results.csv");
+writetable(bk_results, "bk_results.csv");
