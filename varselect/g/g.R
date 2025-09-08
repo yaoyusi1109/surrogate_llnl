@@ -54,6 +54,18 @@ plot(fit, hidden = TRUE)
 
 matplot(fit$x_grid, t(fit$w_grid[, , 1]), type = "l")
 
+# What happens if we do a normal monowarp fit?
+fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE)
+plot(fit)
+plot(fit, hidden = TRUE)
+# It figures things out, but doesn't flatten out so badly
+# Is there a way to do pmx with monowarp?
+# Right now, the implementation doesn't make sense
+# The identity on the grid turns into
+
+# NEW IDEA FOR MONOTONIC WARPING
+# Take whatever distance it goes down, and just make it go up
+
 # THIS IS AN ISSUE
 # Can we fix this by changing the prior?
 # Let's change the prior on theta_y (this is easy)
