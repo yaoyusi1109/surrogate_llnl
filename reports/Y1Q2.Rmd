@@ -92,3 +92,35 @@ for (tau2 in c(0.01, 0.1, 1, 10)) {
 Smaller theta = more linear.  Smaller tau2 = more flat.
 
 Even better?... it looks like we can fix tau2 at 1 and let theta do all the work???
+
+## Updated monowarp DGP model
+
+A standard DGP:
+
+$$
+\begin{array}{rl}
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w}(W) + g\mathbb{I})\right) \\
+\mathbf{w}_p &\sim\mathrm{GP}\left(0,\; K_{\theta_x^p}(X) \right) \quad p=1,\dots,P
+\end{array}
+\quad\textrm{where}\quad
+W = \begin{bmatrix} \mathbf{w}_1 & \mathbf{w}_2 & \dots & \mathbf{w}_p\end{bmatrix}
+$$
+
+A monowarp DGP uses a transformation $T(\mathbf{w}_p)$ which takes $\mathbf{w}_p$ and makes it monotonic.
+
+$$
+\begin{array}{rl}
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w}(W_\textrm{mono}) + g\mathbb{I})\right) \\
+\mathbf{w}_p &\sim\mathrm{GP}\left(0,\; K_{\theta_x^p}(X) \right) \quad p=1,\dots,P
+\end{array}
+\quad\textrm{where}\quad
+W = \begin{bmatrix} T(\mathbf{w}_1) & T(\mathbf{w}_2) & \dots & T(\mathbf{w}_p)\end{bmatrix}
+$$
+I propose a new function $T(\cdot)$ which offers a better warping, preserving the main structure of $\mathbf{w}_i$.
+
+$$
+T(\mathbf{w}) = \mathrm{cumsum}(\mathrm{abs}(\mathrm{diff}(\mathbf{w}_i))
+$$
+
+Let's see this in action.
+
