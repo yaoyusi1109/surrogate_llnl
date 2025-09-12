@@ -297,3 +297,38 @@ sum(cart2bary(xvertices, xstar) * yvertices)
 xstar[1] + xstar[2]
 ```
 
+```{r}
+ord_from_origin <- function(x) {
+  if (!is.matrix(x)) x <- as.matrix(x)
+  d <- ncol(x)
+  origin <- matrix(rep(0, times = d), nrow = 1)
+  dist_from_origin <- drop(sq_dist(origin, x))
+  return(order(dist_from_origin, decreasing = FALSE))
+}
+
+monotransform <- function(x, w_orig, ord = NULL) {
+  if (!is.matrix(x)) x <- as.matrix(x)
+  if (!is.matrix(w_orig)) w_orig <- as.matrix(w_orig)
+  if (is.null(ord)) ord <- ord_from_origin(x)
+  D <- ncol(w_orig)
+  w <- matrix(nrow = nrow(w_orig), ncol = D)
+  for (i in 1:D) {
+    wwarp <- c(0, cumsum(abs(diff(w_orig[ord, i]))))
+    w[, i] <- wwarp[order(ord)]
+  }
+  return(w)
+}
+
+d <- 2
+x <- randomLHS(50, d)
+bounds <- rep(list(c(0, 1), times = d))
+corners <- as.matrix(expand.grid(bounds))
+x <- rbind(x, corners)
+w_orig <- drop(rmvnorm(1, sigma = exp(-sq_dist(x)/0.1)))
+w <- monotransform(x, w_orig)
+
+par(mfrow = c(1, 2))
+image(interp(x[, 1], x[, 2], w_orig))
+image(interp(x[, 1], x[, 2], w))
+```
+
