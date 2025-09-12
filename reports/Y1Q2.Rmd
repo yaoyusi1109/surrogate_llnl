@@ -247,49 +247,53 @@ persp(interp(xord[, 1], xord[, 2], wwarp), theta = 30, r = 30, phi = 30)
 
 Yes, it works!  A reference process in higher dimensions is too much, but we can simply use the training data locations.  Then to predict, we do a linear interploation.
 
-How does linear interpolation work in higher dimension?  We could use the Delaunay triangulation, then use linear interpolation of each triangle containing a predictive location.  This would get very messy.  Maybe we could do it for small dimensional problems only?
+How does linear interpolation work in higher dimension?  We could use the Delaunay triangulation, then use linear interpolation of each triangle containing a predictive location.  In two dimensions, this is known as bilateral interpolation.  There are several R packages that offer this functionality.  In three dimensions, this is known as trilateral interpolation.  I have been unable to find any existing code for that.
+
+The general idea is that the interpolated y value at a point in a "triangle" is a weighted average
+of the values from the "triangle's" vertices (here I am using the term loosely since triangles are only the two dimensional form).
+
+Key things I've learned:
+
+* We can do a Delaunay triangulation with the `delaunayn` function in the `geometry` package.
+* For a new location, we can identify the "triangle" that contains it with the `tsearchn` function.
+* Then, how can we get the proper weights?  Barycentric coordinates...
+* There is no clear way to extrapolate outside the convex hull.  I thus propose adding all corner points to
+our proposals (even though they will not feature in the likelihood).  This will only get clunky in higher dimensions.
+
+Example of adding corner points and finding the containing elements:
 
 ```{r}
 library(geometry)
-tri <- delaunayn(x)
-onetri <- x[tri[1, ], ]
-hull <- convhulln(onetri)
-inhulln(hull, xstar)
 
-tsearch(x[, 1], x[, 2], delaunayn(x), xstar[1], xstar[2])
-
-
-x <- randomLHS(10, 4)
-xstar <- matrix(c(0.5, 0.5, 0.5, 0.5), nrow = 1)
-tsearchn(x, delaunayn(x), xstar)
-
-# monotonic can work for only 1, 2, or 3 dimensions
-```
-This will get very messy in higher dimensions.  For now, we will just offer 1 and 2 dimensions?
-
-```{r}
-get_interp <- function(x, w, xnew, index = NULL, tri = NULL, qhull = NULL) {
-  # x: matrix of original training locations
-  # w: matrix of warped training locations (each column will be handled independently)
-  # xnew: matrix of testing locations that need to be warped through interpolation
-  if (!is.matrix(x)) x <- as.matrix(x)
-  if (!is.matrix(w)) w <- as.matrix(w)
-  if (!is.matrix(xnew)) xnew <- as.matrix(xnew)
-  d <- ncol(x)
-  if (d == 1) {
-    if (is.null(index)) index <- deepgp:::fo_approx_init(x, xnew)
-    wnew <- deepgp:::fo_approx(x, w, xnew, index)
-  } else if (d == 2) {
-    i <- interp::interp(x[, 1], x[, 2], w, xo = xnew[, 1], yo = xnew[, 2],
-                        output = "points", method = "akima", extrap = TRUE)
-    # but how to extrapolate? I think I'll need to create my own function for that
-    # or could we just use kriging?  But it wouldn't be monotonic smh
-  } else {
-    stop("linear interpolation only offered for d = 1:3")
-  }
+get_corners <- function(d) {
+  bounds <- rep(list(c(0, 1)), times = d)
+  return(as.matrix(expand.grid(bounds)))
 }
 
-dim(x)
-interp::interp(x)
+d <- 2
+x <- randomLHS(10, d)
+x <- rbind(x, get_corners(d))
+y <- x[, 1] + x[, 2]
+xstar <- matrix(runif(d), nrow = 1)
 
+# Triangulation
+tri <- delaunayn(x, options = "Q12")
+
+# Identify container
+container <- tsearchn(x, tri, xstar)
+xvertices <- x[tri[container$idx, ], ]
+yvertices <- y[tri[container$idx, ]]
 ```
+
+Now, how do we get the interpolation?
+
+```{r}
+# 2d implementation from interp package
+if (d == 2) interp::interp(xvertices[, 1], xvertices[, 2], yvertices,
+               xo = xstar[1], yo = xstar[2])$z
+
+# My own way using barycentric coordinates (it matches for d = 2)
+sum(cart2bary(xvertices, xstar) * yvertices)
+xstar[1] + xstar[2]
+```
+
