@@ -2,10 +2,11 @@
 addpath('~/Competitors/variable_selection')
 addpath('~/MATLAB_pkgs/ooDACE-1.4/ooDACE')
 
-d = 3;
-n = 100;
-a = [0, 0, 99];
-reps = 30;
+d = 4;
+n = 50;
+np = 500;
+a = [0, 0, 99, 99];
+reps = 50;
 
 sz = [reps d + 1];
 varTypes = repmat({'int8'}, 1, d+1);
@@ -17,6 +18,8 @@ for seed = 1:reps
   rng(seed)
   x = lhsdesign(n, d);
   y = gfunc(x, a);
+  xp = lhsdesign(np, d);
+  yp = gfunc(xp, a);
 
   % Zhang method 
   results = Indicator_based_bayesian_vs_gp(x, y, ...
@@ -24,32 +27,35 @@ for seed = 1:reps
       'tau', 1, ... % default 1
       'sigma', 1, ... % default 1
       'q', 0.5, ... % default 0.5
-      'iterations', 200, ... % default 2000
-      'burnin', 100, ... % default 1000
+      'iterations', 500, ... % default 2000
+      'burnin', 250, ... % default 1000
       'scaling', 3, ...
       'verbose', 1);
-  zhang_results{seed, :} = [seed, results.active_prob > 0.5];
+  zhang_results{seed, :} = [seed, results.active_prob];
+  writetable(zhang_results, 'results/zhang_probs.csv');
 
-  % Blind Kriging method 
-  % code copied from demo in ooDACE toolbox
-  opts = BlindKriging.getDefaultOptions();
-  theta0 = zeros(1,d);
-  opts.hpBounds = [repmat(-2, 1, d); repmat(log10(4), 1, d)];
-  opts.hpOptimizer = SQPLabOptimizer(d, 1);
-  opts.regressionMetric = 'cvpe';
+  % Blind Kriging method (code from demo.m in ooDACE toolbox)
+  opts.type = 'BlindKriging';
   opts.retuneParameters = true;
   opts.regressionMaxOrder = 2;
   opts.regressionMaxLevelInteractions = 2;
-  blindKrige = BlindKriging(opts, theta0, 'regpoly0', @corrgauss);
-  blindKrige = blindKrige.fit(x, y);
-  [dummy, regrFunc, terms] = blindKrige.regressionFunction(struct('includeCoefficients', false));
+  k = oodacefit(x, y, opts );
+  [dummy, regrFunc, terms] = k.regressionFunction(struct('includeCoefficients', false));
+  [mu s2] = k.predict(xp);
+
+  r = readtable('results/pred_bk.csv');
+  r.RMSE(r.seed == seed) = num2cell(sqrt(mean((yp - mu).^2)));
+  s = sqrt(s2);
+  z = (yp - mu)./s;
+  crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
+  r.CRPS(r.seed == seed) = num2cell(crps);
+  writetable(r, 'results/pred_bk.csv');
 
   bk_results.seed(seed) = seed;
   for j = 1:d
     bk_results{seed, j+1} = contains(regrFunc, 'x' + string(j));
   end
+  writetable(bk_results, 'results/bk_in_out.csv');
 
 end
 
-writetable(zhang_results, 'results/zhang_n'+string(n)+'.csv');
-writetable(bk_results, 'results/bk_n'+string(n)+'.csv');

@@ -14,6 +14,7 @@ plot_tau2 <- function(fit, p = 0.01) {
     plot(upper[, i], type = "l", ylim = c(0, max(upper)),
          xlab = "Iteration", ylab = "Upper quantile of tau2",
          main = paste0("Dimension", i))
+    abline(h = quantile(fit$tau2_w[, i], p = 0.99), col = 2, lty = 2)
     abline(h = 1e-4, col = 2)
   }
 }

@@ -12,27 +12,37 @@ gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
   return(prod)
 }
 
-d <- 3
+d <- 4
 n <- 50
-a <- c(0, 0, 99)
-reps <- 30
+np <- 500
+a <- c(0, 0, 99, 99)
+reps <- 50
 
-for (seed in 31:50) {
+for (seed in 1:reps) {
 
   set.seed(seed)
   x <- randomLHS(n, d)
   y <- gfunc(x, a)
+  xp <- randomLHS(np, d)
+  yp <- gfunc(xp, a)
 
+  # Fit regular DGP
+  fit <- fit_two_layer(x, y, nmcmc = 5000)
+  fit <- trim(fit, 3000, 2)
+  fit <- predict(fit, xp)
+  r <- read.csv("results/pred_dgp.csv")
+  r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
+  r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
+  write.csv(r, "results/pred_dgp.csv", row.names = FALSE)
+  
   fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = "axis-aligned")
   fit <- trim(fit, 3000, 2)
-  write.csv(fit$tau2_w, file = paste0("tau2_store/n", n, "_seed", seed, ".csv"), 
+  fit <- predict(fit, xp)
+  r <- read.csv("results/pred_monodgp.csv")
+  r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
+  r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
+  write.csv(r, "results/pred_monodgp.csv", row.names = FALSE)
+  write.csv(fit$tau2_w, file = paste0("results/tau2/seed", seed, ".csv"), 
             row.names = F)
-  #alpha <- n/2
-  #beta <- fit$tau2_w*n/2
-  #upper <- qinvgamma(1 - 0.01, shape = alpha, rate = beta)
-  #meds <- apply(upper, 2, median)
-  
-  #dgp_meds[seed, ] <- c(seed, meds)
-  #write.csv(dgp_meds, paste0("results/dgp_n", n, ".csv"), row.names = FALSE)
 }
 
