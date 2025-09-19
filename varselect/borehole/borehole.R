@@ -22,35 +22,43 @@ borehole <- function(x) {
   return((y - 78) / 46) # about zero mean with unit variance
 }
 
+seed <- 1
+args <- commandArgs(TRUE)
+if(length(args) > 0) 
+  for(i in 1:length(args)) 
+    eval(parse(text = args[[i]]))
+cat("seed is ", seed, "\n")
+set.seed(seed)
+
 d <- 10 # 8 meaningful, 2 irrelevant
 n <- 100
+np <- 1000
+
 x <- randomLHS(n, d)
 y <- borehole(x)
-np <- 500
 xp <- randomLHS(np, d)
 yp <- borehole(xp)
 
-# Regular GP
-fit <- fit_one_layer(x, y, nmcmc = 3000, sep = TRUE)
-plot(fit)
-fit <- trim(fit, 1000, 20)
-fit <- predict(fit, xp)
+# Fit regular DGP
+#fit <- fit_two_layer(x, y, nmcmc = 5000)
+#plot(fit)
+#fit <- trim(fit, 3000, 2)
+#fit <- predict(fit, xp)
+#r <- read.csv("results/pred_dgp.csv")
+#r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
+#r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
+#write.csv(r, "results/pred_dgp.csv", row.names = FALSE)
 
 # Varselect DGP
-fits <- fit_two_layer(x, y, nmcmc = 2000, monowarp = "axis-aligned")
-plot(fits)
-fits <- trim(fits, 1000, 2)
-plot(fits, hidden = TRUE)
-fits <- predict(fits, xp)
+fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = "axis-aligned")
+#plot(fit)
+fit <- trim(fit, 3000, 2)
+#plot(fit, hidden = TRUE)
+fit <- predict(fit, xp)
+r <- read.csv("results/pred_monodgp.csv")
+r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
+r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
+write.csv(r, "results/pred_monodgp.csv", row.names = FALSE)
+write.csv(fit$tau2_w, file = paste0("results/tau2/seed", seed, ".csv"), 
+          row.names = F)
 
-upper <- apply(fits$tau2_w, 2, quantile, p = 0.99)
-plot(1:(d+1), upper)
-
-plot(yp, fit$mean)
-points(yp, fits$mean, col = 2)
-abline(0, 1)
-
-rmse(yp, fit$mean); crps(yp, fit$mean, fit$s2)
-rmse(yp, fits$mean); crps(yp, fits$mean, fits$s2)
-
-# Our varselect DGP does way better!
