@@ -52,3 +52,9 @@ boxplot(dgp_ideal$CRPS, dgp_all$CRPS, monodgp$CRPS, bk$CRPS, zhang$CRPS,
         names = c("DGP Ideal", "DGP All", "monoDGP", "BK", "Zhang"))
 abline(v = 1.5, lty = 2, lwd = 2, col = "grey")
 
+
+# How much of a grid is fine enough granualarity?
+x <- seq(0, 1, length = 200)
+y <- cos(5*x)
+y <- deepgp:::monotransform(y, order(x))
+plot(x, y, pch = "*")
