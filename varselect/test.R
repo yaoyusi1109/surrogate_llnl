@@ -1,22 +1,4 @@
 
-# Numerical issue
-
-# Sometimes, tau2_w goes to zero
-# This makes all points converge to a single point
-# Then tau2_y goes to infinity
-# Model is garbage
-# WHY IS THIS HAPPENING AND HOW DO WE STOP IT?
-
-# Other times, tau2_w goes to infinity
-# Warpings (for no reason) go to large values even though they hold their shape
-# This happens when theta_w is too small?
-
-# Could this be fixed simply by estimating the nugget?
-# I'm pretty confident we should NOT be fixing the nugget if we are potentially
-# deselecting inputs
-
-# Perhaps we need a lower bound on tau2_w???
-
 library(deepgp)
 library(lhs)
 source("functions.R")
@@ -39,11 +21,14 @@ y <- gfunc(x, a)
 xx <- randomLHS(500, d)
 yy <- gfunc(xx, a)
 
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = "axis-aligned")
+fit <- fit_two_layer(x, y, nmcmc = 3000, monowarp = TRUE, pmx = TRUE)
 plot(fit)
-fit <- trim(fit, 3000, 5)
+fit <- trim(fit, 2000, 5)
 plot(fit, hidden = TRUE)
 fit <- predict(fit, xx)
+
+plot(yy, fit$mean)
+points(yy, fit_pm0$mean, col = 2)
 
 plot_tau2(fit)
 summarize_tau2(fit)

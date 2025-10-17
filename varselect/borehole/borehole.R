@@ -31,7 +31,7 @@ cat("seed is ", seed, "\n")
 set.seed(seed)
 
 d <- 10 # 8 meaningful, 2 irrelevant
-n <- 100
+n <- 200
 np <- 1000
 
 x <- randomLHS(n, d)
@@ -40,17 +40,17 @@ xp <- randomLHS(np, d)
 yp <- borehole(xp)
 
 # Fit regular DGP
-#fit <- fit_two_layer(x, y, nmcmc = 5000)
-#plot(fit)
-#fit <- trim(fit, 3000, 2)
-#fit <- predict(fit, xp)
-#r <- read.csv("results/pred_dgp.csv")
-#r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
-#r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
-#write.csv(r, "results/pred_dgp.csv", row.names = FALSE)
+fit <- fit_two_layer(x, y, nmcmc = 5000, vecchia = TRUE)
+plot(fit)
+fit <- trim(fit, 3000, 2)
+fit <- predict(fit, xp)
+r <- read.csv("results/pred_dgp.csv")
+r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
+r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
+write.csv(r, "results/pred_dgp.csv", row.names = FALSE)
 
 # Varselect DGP
-fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = "axis-aligned")
+fit <- fit_two_layer(x, y, nmcmc = 5000, vecchia = TRUE, monowarp = TRUE)
 #plot(fit)
 fit <- trim(fit, 3000, 2)
 #plot(fit, hidden = TRUE)

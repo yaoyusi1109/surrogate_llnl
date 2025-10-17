@@ -1,7 +1,7 @@
 
 # What is a good decision rule for our dgp tau2 values? -----------------------
 
-reps <- 50
+reps <- 36
 upper <- matrix(nrow = reps, ncol = 4)
 for (seed in 1:reps) {
   tau2 <- read.csv(paste0("results/tau2/seed", seed, ".csv"))
@@ -39,12 +39,17 @@ bk <- read.csv("results/pred_bk.csv")
 zhang <- read.csv("results/pred_zhang.csv")
 dgp_all <- read.csv("results/pred_dgp_all.csv")
 dgp_ideal <- read.csv("results/pred_dgp_ideal.csv")
+dgp_ideal_fixed <- read.csv("results/pred_dgp_ideal_fixed.csv")
 monodgp <- read.csv("results/pred_monodgp.csv")
 
 par(mfrow = c(1, 2))
-boxplot(bk$RMSE, zhang$RMSE, dgp_all$RMSE, dgp_ideal$RMSE, monodgp$RMSE, log = "y",
-        names = c("BK", "Zhang", "DGP All", "DGP Ideal", "monoDGP"), ylab = "RMSE (log scale)")
-boxplot(bk$CRPS, zhang$CRPS, dgp_all$CRPS, dgp_ideal$CRPS, monodgp$CRPS, log = "y",
-        names = c("BK", "Zhang", "DGP All", "DGP Ideal", "monoDGP"), ylab = "CRPS (log scale)")
+boxplot(bk$RMSE, zhang$RMSE, dgp_all$RMSE, dgp_ideal$RMSE, dgp_ideal_fixed$RMSE,
+        monodgp$RMSE, log = "y",
+        names = c("BK", "Zhang", "DGP All", "DGP Ideal", "DGP Ideal Fixed", "monoDGP"), 
+        ylab = "RMSE (log scale)")
+boxplot(bk$CRPS, zhang$CRPS, dgp_all$CRPS, dgp_ideal$CRPS, dgp_ideal_fixed$CRPS,
+        monodgp$CRPS, log = "y",
+        names = c("BK", "Zhang", "DGP All", "DGP Ideal", "DGP Ideal Fixed", "monoDGP"), 
+        ylab = "CRPS (log scale)")
 
 
