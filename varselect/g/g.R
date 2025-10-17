@@ -27,34 +27,25 @@ for (seed in 1:reps) {
   yp <- gfunc(xp, a)
 
   # Fit regular DGP
-  fit <- fit_two_layer(x, y, nmcmc = 5000)
-  fit <- trim(fit, 3000, 2)
-  fit <- predict(fit, xp)
-  r <- read.csv("results/pred_dgp_all.csv")
-  r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
-  r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
-  write.csv(r, "results/pred_dgp_all.csv", row.names = FALSE)
-
-  # Fit regular DGP with only the important inputs
-  fit <- fit_two_layer(x[, 1:2], y, nmcmc = 5000)
-  fit <- trim(fit, 3000, 2)
-  fit <- predict(fit, xp[, 1:2])
-  r <- read.csv("results/pred_dgp_ideal.csv")
-  r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
-  r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
-  write.csv(r, "results/pred_dgp_ideal.csv", row.names = FALSE)
-
-  # Fit regular DGP with only the important inputs AND fixed nugget
-  #fit <- fit_two_layer(x[, 1:2], y, nmcmc = 5000, true_g = 1e-6)
+  #fit <- fit_two_layer(x, y, nmcmc = 5000)
   #fit <- trim(fit, 3000, 2)
-  #fit <- predict(fit, xp[, 1:2])
-  #r <- read.csv("results/pred_dgp_ideal_fixed.csv")
+  #fit <- predict(fit, xp)
+  #r <- read.csv("results/pred_dgp_all.csv")
   #r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
   #r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
-  #write.csv(r, "results/pred_dgp_ideal_fixed.csv", row.names = FALSE)
+  #write.csv(r, "results/pred_dgp_all.csv", row.names = FALSE)
+
+  # Fit regular DGP with only the important inputs
+  #fit <- fit_two_layer(x[, 1:2], y, nmcmc = 5000)
+  #fit <- trim(fit, 3000, 2)
+  #fit <- predict(fit, xp[, 1:2])
+  #r <- read.csv("results/pred_dgp_ideal.csv")
+  #r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
+  #r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
+  #write.csv(r, "results/pred_dgp_ideal.csv", row.names = FALSE)
   
   # Fit mono DGP
-  fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, pmx = TRUE)
+  fit <- fit_two_layer(x, y, nmcmc = 10000, monowarp = TRUE)
   fit <- trim(fit, 3000, 2)
   fit <- predict(fit, xp)
   r <- read.csv("results/pred_monodgp.csv")
@@ -65,3 +56,10 @@ for (seed in 1:reps) {
             row.names = F)
 }
 
+alpha = 1.2
+beta = 0.2
+
+x = seq(0.01, 10, length = 100)
+plot(x, dgamma(x, alpha, beta), type = "l")
+
+qgamma(0.95, alpha, beta)

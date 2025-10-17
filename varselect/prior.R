@@ -58,3 +58,46 @@ for (tau2 in c(0.01, 0.1, 1)) {
 # theta mostly controls the wiggliness
 # They are both related though
 # pmx is less likely to become totally flat, but will become "practically flat"
+
+# NEW IDEA --------------------------------------------------------------------
+# What if we fix tau2 and vary theta, but DON'T SCALE THE MONOWARPED SAMPLES
+
+monotransform <- function(w, warp_ord) {
+  if (!is.matrix(w)) w <- as.matrix(w)
+  D <- ncol(w)
+  wwarp <- matrix(nrow = nrow(w), ncol = D)
+  for (i in 1:D) {
+    if (is.matrix(warp_ord)) {
+      ord_to_use <- warp_ord[, i]
+    } else ord_to_use <- warp_ord
+    wwarp_ordered <- c(0, cumsum(abs(diff(w[ord_to_use, i]))))
+    wwarp[, i] <- wwarp_ordered[order(ord_to_use)]
+  }
+  return(wwarp)
+}
+
+
+reps <- 10
+n <- 50
+x <- seq(0, 1, length = n)
+warp_ord <- order(x, decreasing = FALSE)
+dx <- sq_dist(x)
+
+par(mfrow = c(2, 4))
+for (tau2 in c(0.01, 0.1, 1, 10)) {
+  K <- deepgp:::Matern(dx, tau2, 0.1, 1e-6, 2.5)
+  wprior <- t(mvtnorm::rmvnorm(reps, mean = rep(0, n), sigma = K))
+  wwarp <- monotransform(wprior, warp_ord)
+  matplot(x, wprior, type = "l", main = "pm0, original")
+  matplot(x, wwarp, type = "l", main = "pm0, warped")
+}
+
+par(mfrow = c(2, 4))
+for (theta in c(0.01, 0.1, 1, 10)) {
+  K <- deepgp:::Matern(dx, 1, theta, 1e-6, 2.5)
+  wprior <- t(mvtnorm::rmvnorm(reps, mean = rep(0, n), sigma = K))
+  wwarp <- monotransform(wprior, warp_ord)
+  matplot(x, wprior, type = "l", main = "pm0, original")
+  matplot(x, wwarp, type = "l", main = "pm0, warped")
+}
+

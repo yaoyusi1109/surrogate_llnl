@@ -37,13 +37,16 @@ fit1 <- fit_two_layer(xdummy, y, nmcmc = 5000)
 plot(fit1)
 fit1 <- trim(fit1, 3000, 2)
 fit1 <- predict(fit1, xxdummy, lite = TRUE)
+plot(yy, fit1$mean)
 
 # monowarp DGP - bugs out?
-fit2 <- fit_two_layer(xdummy, y, nmcmc = 2000, monowarp = TRUE)
-plot(fit2)
-fit2 <- trim(fit2, 1000, 2)
+fit2 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE)
+plot(fit2, hidden = TRUE)
+fit2 <- trim(fit2, 3000, 2)
 plot(fit2, hidden = TRUE)
 fit2 <- predict(fit2, xxdummy, lite = TRUE)
+plot(yy, fit1$mean)
+points(yy, fit2$mean, col = 2)
 
 # monowarp DGP with pmx
 fit3 <- fit_two_layer(xdummy, y, nmcmc = 5000, monowarp = TRUE, pmx = TRUE)
@@ -59,12 +62,4 @@ rmse(yy, fit3$mean)
 crps(yy, fit1$mean, fit1$s2)
 crps(yy, fit2$mean, fit2$s2)
 crps(yy, fit3$mean, fit3$s2)
-
-plot_tau2(fit2)
-plot_tau2(fit3)
-
-# Ok, but could this be due to scaling in the monotransform function?
-par(mfrow = c(1, 3))
-for (i in 1:3) 
-  plot(fit3$x[, i], fit3$w[1, , i], ylim = c(-0.5, 0.5))
 
