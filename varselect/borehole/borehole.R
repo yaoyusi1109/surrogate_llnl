@@ -1,7 +1,6 @@
 
 library(deepgp)
 library(lhs)
-library(invgamma)
 
 borehole <- function(x) {
   if (!is.matrix(x)) x <- as.matrix(x)
@@ -12,7 +11,7 @@ borehole <- function(x) {
   Tl <- x[, 5] * (116 - 63.1) + 63.1
   Hl <- x[, 6] * (820 - 700) + 700
   L  <- x[, 7] * (1680 - 1120) + 1120
-  Kw <- x[, 8] * (12045 - 9855) + 9855
+  Kw <- x[, 8] * (15000 - 1500) + 9855
   
   frac1 <- 2 * pi * Tu * (Hu-Hl)
   frac2a <- 2*L*Tu / (log(r/rw)*rw^2*Kw)
