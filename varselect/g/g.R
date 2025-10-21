@@ -18,7 +18,7 @@ np <- 500
 a <- c(0, 0, 99, 99)
 reps <- 50
 
-for (seed in 1:reps) {
+for (seed in 2:reps) {
 
   set.seed(seed)
   x <- randomLHS(n, d)
