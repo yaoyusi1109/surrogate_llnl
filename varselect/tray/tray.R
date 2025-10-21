@@ -50,9 +50,9 @@ for (seed in 1:reps) {
   r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
   r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
   write.csv(r, "results/pred_monodgp.csv", row.names = FALSE)
-  write.csv(fit$tau2_w, file = paste0("results/tau2/seed", seed, ".csv"), 
-            row.names = F)
-  write.csv(fit$theta_w, file = paste0("results/theta/seed", seed, ".csv"), 
+  wr <- matrix(nrow = fit$nmcmc, ncol = d)
+  for (i in 1:d) wr[, i] <- apply(fit$w[, , i], 1, max)
+  write.csv(wr, file = paste0("results/wrange/seed", seed, ".csv"), 
             row.names = F)
 }
 

@@ -4,12 +4,8 @@
 reps <- 50
 upper <- matrix(nrow = reps, ncol = 4)
 for (seed in 1:reps) {
-  tau2 <- read.csv(paste0("results/tau2/seed", seed, ".csv"))
-  upper[seed, ] <- apply(tau2, 2, quantile, p = 0.99)
-  #par(mfrow = c(1, 3))
-  #for (i in 1:3)
-  #  plot(tau2[, i], type = "l", ylim = c(0, 10))
-  #Sys.sleep(1)
+  wrange <- read.csv(paste0("results/wrange/seed", seed, ".csv"))
+  upper[seed, ] <- apply(wrange, 2, quantile, p = 0.99)
 }
 
 boxplot(upper)
@@ -51,10 +47,3 @@ boxplot(dgp_ideal$CRPS, dgp_all$CRPS, monodgp$CRPS, bk$CRPS, zhang$CRPS,
         col = col, ylab = "CRPS",
         names = c("DGP Ideal", "DGP All", "monoDGP", "BK", "Zhang"))
 abline(v = 1.5, lty = 2, lwd = 2, col = "grey")
-
-
-# How much of a grid is fine enough granualarity?
-x <- seq(0, 1, length = 200)
-y <- cos(5*x)
-y <- deepgp:::monotransform(y, order(x))
-plot(x, y, pch = "*")
