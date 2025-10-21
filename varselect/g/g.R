@@ -45,21 +45,15 @@ for (seed in 1:reps) {
   #write.csv(r, "results/pred_dgp_ideal.csv", row.names = FALSE)
   
   # Fit mono DGP
-  fit <- fit_two_layer(x, y, nmcmc = 10000, monowarp = TRUE)
+  fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE)
   fit <- trim(fit, 3000, 2)
   fit <- predict(fit, xp)
   r <- read.csv("results/pred_monodgp.csv")
   r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
   r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
   write.csv(r, "results/pred_monodgp.csv", row.names = FALSE)
-  write.csv(fit$tau2_w, file = paste0("results/tau2/seed", seed, ".csv"), 
+  wr <- matrix(nrow = fit$nmcmc, ncol = d)
+  for (i in 1:d) wr[, i] <- apply(fit$w[, , i], 1, max)
+  write.csv(wr, file = paste0("results/wrange/seed", seed, ".csv"), 
             row.names = F)
 }
-
-alpha = 1.2
-beta = 0.2
-
-x = seq(0.01, 10, length = 100)
-plot(x, dgamma(x, alpha, beta), type = "l")
-
-qgamma(0.95, alpha, beta)

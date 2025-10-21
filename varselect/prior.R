@@ -5,6 +5,20 @@
 
 library(deepgp)
 
+monotransform <- function(w, warp_ord) {
+  if (!is.matrix(w)) w <- as.matrix(w)
+  D <- ncol(w)
+  wwarp <- matrix(nrow = nrow(w), ncol = D)
+  for (i in 1:D) {
+    if (is.matrix(warp_ord)) {
+      ord_to_use <- warp_ord[, i]
+    } else ord_to_use <- warp_ord
+    wwarp_ordered <- c(0, cumsum(pmax(diff(w[ord_to_use, i]), 0)))
+    wwarp[, i] <- wwarp_ordered[order(ord_to_use)]
+  }
+  return(wwarp)
+}
+
 reps <- 10
 n <- 50
 x <- seq(0, 1, length = n)
@@ -19,13 +33,13 @@ par(mfrow = c(2, 2))
 
 K <- deepgp:::Matern(dx, tau2, theta, 1e-6, 2.5)
 wprior <- t(mvtnorm::rmvnorm(reps, mean = rep(0, n), sigma = K))
-wwarp <- deepgp:::monotransform(wprior, warp_ord)
+wwarp <- monotransform(wprior, warp_ord)
 matplot(x, wprior, type = "l", main = "pm0, original")
 matplot(x, wwarp, type = "l", main = "pm0, warped")
 
 K <- deepgp:::Matern(dx, tau2, theta, 1e-6, 2.5)
 wprior <- t(mvtnorm::rmvnorm(reps, mean = x, sigma = K))
-wwarp <- deepgp:::monotransform(wprior, warp_ord)
+wwarp <- monotransform(wprior, warp_ord)
 matplot(x, wprior, type = "l", main = "pmx, original")
 matplot(x, wwarp, type = "l", main = "pmx, warped")
 
@@ -36,7 +50,7 @@ for (tau2 in c(0.01, 0.1, 1)) {
   for (theta in c(0.01, 0.1, 1)) {
     K <- deepgp:::Matern(dx, tau2, theta, 1e-6, 2.5)
     wprior <- t(mvtnorm::rmvnorm(reps, mean = rep(0, n), sigma = K))
-    wwarp <- deepgp:::monotransform(wprior, warp_ord)
+    wwarp <- monotransform(wprior, warp_ord)
     matplot(x, wwarp, type = "l",
             main = paste0("pm0, tau2 = ", tau2, " theta = ", theta))
   }
@@ -61,21 +75,6 @@ for (tau2 in c(0.01, 0.1, 1)) {
 
 # NEW IDEA --------------------------------------------------------------------
 # What if we fix tau2 and vary theta, but DON'T SCALE THE MONOWARPED SAMPLES
-
-monotransform <- function(w, warp_ord) {
-  if (!is.matrix(w)) w <- as.matrix(w)
-  D <- ncol(w)
-  wwarp <- matrix(nrow = nrow(w), ncol = D)
-  for (i in 1:D) {
-    if (is.matrix(warp_ord)) {
-      ord_to_use <- warp_ord[, i]
-    } else ord_to_use <- warp_ord
-    wwarp_ordered <- c(0, cumsum(abs(diff(w[ord_to_use, i]))))
-    wwarp[, i] <- wwarp_ordered[order(ord_to_use)]
-  }
-  return(wwarp)
-}
-
 
 reps <- 10
 n <- 50
