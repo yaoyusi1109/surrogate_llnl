@@ -3,7 +3,7 @@ library(deepgp)
 library(lhs)
 
 tray <- function(x) {
-  x <- x[, 1:2] # only first two inputs are relevant
+  x <- x[, 1:2, drop = FALSE] # only first two inputs are relevant
   x <- x*4 - 2
   p1 <- abs(100 - sqrt(apply(x^2, 1, sum)) / pi)
   p2 <- abs(apply(sin(x), 1, prod) * exp(p1)) + 1
