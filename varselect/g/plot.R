@@ -5,13 +5,13 @@ reps <- 50
 upper <- matrix(nrow = reps, ncol = 4)
 for (seed in 1:reps) {
   wrange <- read.csv(paste0("results/wrange/seed", seed, ".csv"))
-  upper[seed, ] <- apply(wrange, 2, quantile, p = 0.99)
+  upper[seed, ] <- apply(wrange/apply(wrange, 1, max), 2, quantile, p = 0.99)
 }
 
 boxplot(upper)
-abline(h = 1, col = 2, lty = 2, lwd = 2)
+abline(h = 0.2, col = 2, lty = 2, lwd = 2)
 summary(upper)
-apply(upper > 1, 2, mean)
+apply(upper > 0.2, 2, mean)
 
 # Proportion of times a variable was selected ---------------------------------
 

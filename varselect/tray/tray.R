@@ -56,6 +56,7 @@ for (seed in 1:reps) {
             row.names = F)
 }
 
-#file <- "results/pred_monodgp.csv"
+#file <- "results/pred_zhang.csv"
+#results <- data.frame(seed = 1:reps, x1 = NA, x2 = NA, x3 = NA, x4 = NA, x5 = NA)
 #results <- data.frame(seed = 1:reps, RMSE = NA, CRPS = NA)
 #write.csv(results, file, row.names = FALSE)
