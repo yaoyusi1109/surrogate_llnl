@@ -7,7 +7,7 @@ n = 100;
 np = 500;
 reps = 50;
 
-for seed = 2:reps
+for seed = 39:reps
   rng(seed)
   x = lhsdesign(n, d);
   y = trayfunc(x);
@@ -25,11 +25,11 @@ for seed = 2:reps
     'scaling', 3, ...
     'verbose', 1);
   zhang_probs = readtable('results/zhang_probs.csv');
-  zhang_probs.x1(seed) = num2cell(results.active_prob(1));
-  zhang_probs.x2(seed) = num2cell(results.active_prob(2));
-  zhang_probs.x3(seed) = num2cell(results.active_prob(3));
-  zhang_probs.x4(seed) = num2cell(results.active_prob(4));
-  zhang_probs.x5(seed) = num2cell(results.active_prob(5));
+  zhang_probs.x1(seed) = results.active_prob(1);
+  zhang_probs.x2(seed) = results.active_prob(2);
+  zhang_probs.x3(seed) = results.active_prob(3);
+  zhang_probs.x4(seed) = results.active_prob(4);
+  zhang_probs.x5(seed) = results.active_prob(5);
   writetable(zhang_probs, 'results/zhang_probs.csv');
 
   % GP with only the selected variables
@@ -38,11 +38,11 @@ for seed = 2:reps
   fit = oodacefit(xtrim, y);
   [mu s2] = fit.predict(xptrim);
   r = readtable('results/pred_zhang.csv');
-  r.RMSE(seed) = num2cell(sqrt(mean((yp - mu).^2)));
+  r.RMSE(seed) = sqrt(mean((yp - mu).^2));
   s = sqrt(s2);
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
-  r.CRPS(seed) = num2cell(crps);
+  r.CRPS(seed) = crps;
   writetable(r, 'results/pred_zhang.csv');
 
   % Blind Kriging method (code from demo.m in ooDACE toolbox)
@@ -55,16 +55,16 @@ for seed = 2:reps
   [mu s2] = k.predict(xp);
 
   r = readtable('results/pred_bk.csv');
-  r.RMSE(seed) = num2cell(sqrt(mean((yp - mu).^2)));
+  r.RMSE(seed) = sqrt(mean((yp - mu).^2));
   s = sqrt(s2);
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
-  r.CRPS(seed) = num2cell(crps);
+  r.CRPS(seed) = crps;
   writetable(r, 'results/pred_bk.csv');
 
   bk_results = readtable('results/bk_in_out.csv');
   for j = 1:d
-    bk_results{seed, j+1} = num2cell(contains(regrFunc, 'x' + string(j)));
+    bk_results{seed, j+1} = contains(regrFunc, 'x' + string(j));
   end
   writetable(bk_results, 'results/bk_in_out.csv');
 
