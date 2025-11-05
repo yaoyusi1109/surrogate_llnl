@@ -56,7 +56,10 @@ for (seed in 1:reps) {
             row.names = F)
 }
 
+#reps <- 50
+#setwd("~/llnl-dgp-git/varselect/borehole/")
 #file <- "results/pred_zhang.csv"
-#results <- data.frame(seed = 1:reps, x1 = NA, x2 = NA, x3 = NA, x4 = NA, x5 = NA)
+#results <- data.frame(seed = 1:reps, x1 = NA, x2 = NA, x3 = NA, x4 = NA, x5 = NA,
+#                     x6 = NA, x7 = NA, x8 = NA, x9 = NA, x10 = NA)
 #results <- data.frame(seed = 1:reps, RMSE = NA, CRPS = NA)
 #write.csv(results, file, row.names = FALSE)

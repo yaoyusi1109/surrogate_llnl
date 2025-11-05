@@ -13,7 +13,7 @@ function y = borehole(x)
   frac2a = 2.*L.*Tu./(log(r./rw).*rw.^2.*Kw);
   frac2b = Tu./Tl;
   frac2 = log(r./rw).*(1+frac2a+frac2b);
-  y = frac1./frac2
-  y = (y-78)./46;
+  y = frac1./frac2;
+  y = (y-59)./49;
 
 end

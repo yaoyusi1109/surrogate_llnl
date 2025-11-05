@@ -1,6 +1,6 @@
 
 library(deepgp)
-library(MOFAT)
+library(lhs)
 
 gfunc <- function(x, a = (1:ncol(x) - 1)/2) {
   if (!is.matrix(x)) x <- as.matrix(x)

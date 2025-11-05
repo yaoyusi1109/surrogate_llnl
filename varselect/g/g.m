@@ -8,13 +8,7 @@ np = 500;
 a = [0, 0, 99, 99];
 reps = 50;
 
-sz = [reps d + 1];
-varTypes = repmat({'int8'}, 1, d+1);
-varNames = ['seed','x'+string(1:d)];
-zhang_results = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
-bk_results = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
-
-for seed = 27:reps
+for seed = 1:reps
   rng(seed)
   x = lhsdesign(n, d);
   y = gfunc(x, a);
@@ -31,7 +25,8 @@ for seed = 27:reps
     'burnin', 100, ... % default 1000
     'scaling', 3, ...
     'verbose', 1);
-  zhang_results{seed, :} = [seed, results.active_prob];
+  zhang_results = readtable('results/zhang_probs.csv');
+  zhang_results{seed, 2:(d+1)} = num2cell(results.active_prob);
   writetable(zhang_results, 'results/zhang_probs.csv');
 
   % GP with only the selected variables
@@ -39,12 +34,13 @@ for seed = 27:reps
   xptrim = xp(:, results.active_vars);
   fit = oodacefit(xtrim, y);
   [mu s2] = fit.predict(xptrim);
-  r = readtable('results/pred_zhang.csv');
-  r.RMSE(r.seed == seed) = sqrt(mean((yp - mu).^2));
+  rmse = sqrt(mean((yp - mu).^2));
   s = sqrt(s2);
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
-  r.CRPS(r.seed == seed) = crps;
+  r = readtable('results/pred_zhang.csv');
+  r.RMSE{seed} = rmse;
+  r.CRPS{seed} = crps;
   writetable(r, 'results/pred_zhang.csv');
 
   % Blind Kriging method (code from demo.m in ooDACE toolbox)
@@ -54,21 +50,21 @@ for seed = 27:reps
   opts.regressionMaxLevelInteractions = 2;
   k = oodacefit(x, y, opts );
   [dummy, regrFunc, terms] = k.regressionFunction(struct('includeCoefficients', false));
+  bk_results = readtable('results/bk_in_out.csv');
+  for j = 1:d
+    bk_results{seed, j+1} = num2cell(contains(regrFunc, 'x' + string(j)));
+  end
+  writetable(bk_results, 'results/bk_in_out.csv');
+  
   [mu s2] = k.predict(xp);
-
-  r = readtable('results/pred_bk.csv');
-  r.RMSE(r.seed == seed) = sqrt(mean((yp - mu).^2));
+  rmse = sqrt(mean((yp - mu).^2));
   s = sqrt(s2);
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
-  r.CRPS(r.seed == seed) = crps;
+  r = readtable('results/pred_bk.csv');
+  r.RMSE{seed} = rmse;
+  r.CRPS{seed} = crps;
   writetable(r, 'results/pred_bk.csv');
-
-  bk_results.seed(seed) = seed;
-  for j = 1:d
-    bk_results{seed, j+1} = contains(regrFunc, 'x' + string(j));
-  end
-  writetable(bk_results, 'results/bk_in_out.csv');
 
 end
 
