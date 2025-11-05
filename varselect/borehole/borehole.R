@@ -1,6 +1,6 @@
 
 library(deepgp)
-library(lhs)
+library(MOFAT)
 
 borehole <- function(x) {
   if (!is.matrix(x)) x <- as.matrix(x)
@@ -11,7 +11,7 @@ borehole <- function(x) {
   Tl <- x[, 5] * (116 - 63.1) + 63.1
   Hl <- x[, 6] * (820 - 700) + 700
   L  <- x[, 7] * (1680 - 1120) + 1120
-  Kw <- x[, 8] * (15000 - 1500) + 9855
+  Kw <- x[, 8] * (15000 - 1500) + 1500
   
   frac1 <- 2 * pi * Tu * (Hu-Hl)
   frac2a <- 2*L*Tu / (log(r/rw)*rw^2*Kw)
@@ -33,7 +33,7 @@ d <- 10 # 8 meaningful, 2 irrelevant
 n <- 200
 np <- 1000
 
-x <- randomLHS(n, d)
+x <- mofat(d, floor(n/(d+1)))
 y <- borehole(x)
 xp <- randomLHS(np, d)
 yp <- borehole(xp)
@@ -49,10 +49,10 @@ r$CRPS[r$seed == seed] <- crps(yp, fit$mean, fit$s2)
 write.csv(r, "results/pred_dgp.csv", row.names = FALSE)
 
 # Varselect DGP
-fit <- fit_two_layer(x, y, nmcmc = 5000, vecchia = TRUE, monowarp = TRUE)
+fit <- fit_two_layer(x, y, nmcmc = 5000, vecchia = TRUE, monowarp = TRUE, varselect = TRUE)
 #plot(fit)
 fit <- trim(fit, 3000, 2)
-#plot(fit, hidden = TRUE)
+plot(fit, hidden = TRUE)
 fit <- predict(fit, xp)
 r <- read.csv("results/pred_monodgp.csv")
 r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)

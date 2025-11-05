@@ -30,7 +30,7 @@
 \footskip=0.5in
 \doublespacing
 
-\title{\vspace{-0.3cm} Variable Selection with Monotonically Warped Deep Gaussian Processes}
+\title{\vspace{-0.3cm} Variable Selection with Deep Gaussian Process Surrogates}
 \author{Annie S. Booth\thanks{Corresponding author: Department of Statistics, 
 	Virginia Tech, {\tt annie\_booth@vt.edu}} 
 	\and Kevin Quinlan\thanks{Lawrence Livermore National Laboratory} 
@@ -59,7 +59,7 @@ Motivate - variable selection
 
 Introduce DGPs
 
-Competing methods: blind kriging and Zhang paper
+Competing methods: blind kriging and Zhang paper, paper that Jon sent?
 
 \section{Review: Deep Gaussian processes}
 
@@ -67,19 +67,30 @@ Review classic DGPs
 
 \section{Method}
 
-\subsection{A better monotonic warping}
+Upgrades to monotonic warping functionality
+Upgrades to allow $\tau^2_w$ to VARY (Bayesian framework with noninformative prior)
 
-\subsection{Upgrades to scale on latent layers to facilitate variable selection}
+\subsection{The decision rule}
+
+Based on the range of W
 
 \section{Synthetic Benchmarks}
 
+G function with 2 important, 2 not important
+
+Tray function with 2 important, 3 not important
+
+Larger example???
+
 \section{Motivating Example}
+
+10 dimensions?
 
 \section{Discussion}
 
 \subsection*{Acknowledgements}
 
-Support from Lawrence Livermore National Laboratory (project ID?)
+Support from Lawrence Livermore National Laboratory
 
 \singlespacing
 \bibliographystyle{../jasa}

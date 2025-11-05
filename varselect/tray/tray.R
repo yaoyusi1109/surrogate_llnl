@@ -43,7 +43,7 @@ for (seed in 1:reps) {
   write.csv(r, "results/pred_dgp_ideal.csv", row.names = FALSE)
   
   # Fit mono DGP
-  fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE)
+  fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, varselect = TRUE)
   fit <- trim(fit, 3000, 2)
   fit <- predict(fit, xp)
   r <- read.csv("results/pred_monodgp.csv")

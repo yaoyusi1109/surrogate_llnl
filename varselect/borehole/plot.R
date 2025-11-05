@@ -23,14 +23,15 @@ apply(upper > 0.1, 2, mean, na.rm = TRUE)
 bk <- read.csv(paste0("results/bk_in_out.csv"))[, -1]
 #zhang <- read.csv(paste0("results/zhang_probs.csv"))[, -1]
 #zhang <- (zhang > 0.5)
-dgp <- (upper > 0.1)
+#dgp <- (upper > 0.1)
 
-results <- data.frame(method = c("Ideal", "Blind Kriging", "monoDGP"),
+results <- data.frame(method = c("Ideal", "Blind Kriging", "zhang"),
                       x1 = NA, x2 = NA, x3 = NA, x4 = NA, x5 = NA,
                       x6 = NA, x7 = NA, x8 = NA, x9 = NA, x10 = NA)
 results[1, -1] <- c(rep(1, 8), rep(0, 2))
 results[2, -1] <- apply(bk, 2, mean, na.rm = TRUE)
-results[3, -1] <- apply(dgp, 2, mean, na.rm = TRUE)
+#results[2, -1] <- apply(zhang, 2, mean, na.rm = TRUE)
+#results[3, -1] <- apply(dgp, 2, mean, na.rm = TRUE)
 
 knitr::kable(results)
 

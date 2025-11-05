@@ -1,7 +1,7 @@
 
 # What is a good decision rule for our dgp tau2 values? -----------------------
 
-reps <- 2
+reps <- 50
 upper <- matrix(nrow = reps, ncol = 5)
 for (seed in 1:reps) {
   wrange <- read.csv(paste0("results/wrange/seed", seed, ".csv"))
@@ -10,8 +10,8 @@ for (seed in 1:reps) {
 
 boxplot(upper)
 abline(h = 0.2, col = 2, lty = 2, lwd = 2)
-summary(upper)
-apply(upper > 0.2, 2, mean)
+#summary(upper)
+#apply(upper > 0.2, 2, mean)
 
 # Proportion of times a variable was selected ---------------------------------
 
@@ -23,8 +23,8 @@ monodgp <- (upper > 0.2)
 results <- data.frame(method = c("Ideal", "Blind Kriging", "Zhang et al.", "monoDGP"),
                       x1 = NA, x2 = NA, x3 = NA, x4 = NA, x5 = NA)
 results[1, 2:6] <- c(1, 1, 0, 0, 0)
-results[2, 2:6] <- apply(bk, 2, mean, na.rm = TRUE)
-results[3, 2:6] <- apply(zhang, 2, mean, na.rm = TRUE)
+results[2, 2:6] <- apply(bk, 2, mean)
+results[3, 2:6] <- apply(zhang, 2, mean)
 results[4, 2:6] <- apply(monodgp, 2, mean)
 
 knitr::kable(results)

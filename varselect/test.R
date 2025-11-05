@@ -1,7 +1,6 @@
 
 library(deepgp)
 library(lhs)
-source("functions.R")
 
 d <- 3
 n <- 50
@@ -25,22 +24,9 @@ fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE)
 plot(fit)
 fit <- trim(fit, 3000, 2)
 plot(fit, hidden = TRUE)
-
-# ratio of tau2 / theta???
-#fit <- trim(fit, 1000, 2)
-par(mfcol = c(3, 3))
-for (i in 1:3) {
-  plot(fit$tau2_w[, i], type = "l", log = "y", ylim = c(0.01, 2))
-  plot(fit$theta_w[, i], type = "l", log = "y", ylim = c(0.1, 7))
-  plot(fit$tau2_w[, i]/fit$theta_w[, i], type = "l", log = "y", ylim = c(0.001, 2))
-}
-
 fit <- predict(fit, xx)
 
 plot(yy, fit$mean)
-
-plot_tau2(fit)
-summarize_tau2(fit)
 
 # Compare to original fit
 fit0 <- fit_two_layer(x, y, nmcmc = 5000)
