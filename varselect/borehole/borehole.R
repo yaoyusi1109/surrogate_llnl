@@ -21,7 +21,7 @@ borehole <- function(x) {
   return((y - 59)/49) # about zero mean with unit variance
 }
 
-seed <- 2
+seed <- 3
 args <- commandArgs(TRUE)
 if(length(args) > 0) 
   for(i in 1:length(args)) 

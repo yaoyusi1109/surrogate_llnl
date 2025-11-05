@@ -7,7 +7,7 @@ n = 200;
 np = 1000;
 reps = 50;
 
-for seed = 2:reps
+for seed = 27:reps
   rng(seed)
   x = lhsdesign(n, d);
   y = boreholefunc(x);
@@ -25,7 +25,7 @@ for seed = 2:reps
       'scaling', 3, ...
       'verbose', 1);
   zhang_results = readtable('results/zhang_probs.csv');
-  zhang_results{seed, 2:(d+1)} = num2cell(results.active_prob);
+  zhang_results{seed, 2:(d+1)} = results.active_prob;
   writetable(zhang_results, 'results/zhang_probs.csv');
 
   % GP with only the selected variables
@@ -38,8 +38,8 @@ for seed = 2:reps
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
   r = readtable('results/pred_zhang.csv');
-  r.RMSE{seed} = rmse;
-  r.CRPS{seed} = crps;
+  r.RMSE(seed) = rmse;
+  r.CRPS(seed) = crps;
   writetable(r, 'results/pred_zhang.csv');
 
   % Blind Kriging method (code from demo.m in ooDACE toolbox)
@@ -51,7 +51,7 @@ for seed = 2:reps
   [dummy, regrFunc, terms] = k.regressionFunction(struct('includeCoefficients', false));
   bk_results = readtable('results/bk_in_out.csv');
   for j = 1:d
-    bk_results{seed, j+1} = num2cell(contains(regrFunc, 'x' + string(j)));
+    bk_results(seed, j+1) = num2cell(contains(regrFunc, 'x' + string(j)));
   end
   writetable(bk_results, 'results/bk_in_out.csv');
   
@@ -61,8 +61,8 @@ for seed = 2:reps
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
   r = readtable('results/pred_bk.csv');
-  r.RMSE{seed} = rmse;
-  r.CRPS{seed} = crps;
+  r.RMSE(seed) = rmse;
+  r.CRPS(seed) = crps;
   writetable(r, 'results/pred_bk.csv');
 
 
