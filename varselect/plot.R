@@ -14,7 +14,7 @@ if (func == "g") {
 
 # What is a good decision rule for our dgp tau2 values? -----------------------
 
-reps <- 2
+reps <- 20
 upper <- matrix(nrow = reps, ncol = d)
 for (seed in 1:reps) {
   wrange <- read.csv(paste0(func, "/results/wrange/seed", seed, ".csv"))
