@@ -1,5 +1,5 @@
 
-func <- "borehole"
+func <- "ignition"
 
 if (func == "g") {
   d <- 4
@@ -9,7 +9,10 @@ if (func == "g") {
   ideal <- c(1, 1, 0, 0, 0)
 } else if (func == "borehole") {
   d <- 10
-  ideal <- c(1, 1, 1, 1, 1, 1, 1, 1, 0, 0)
+  ideal <- c(rep(1, 8), rep(0, 2))
+} else if (func == "ignition") {
+  d <- 13
+  ideal <- c(rep(1, 10), rep(0, 3))
 }
 
 # What is a good decision rule for our dgp tau2 values? -----------------------
@@ -26,9 +29,9 @@ abline(h = 0.2, col = 2, lty = 2, lwd = 2)
 
 # Proportion of times a variable was selected ---------------------------------
 
-bk <- read.csv(paste0(func, "/results/bk_in_out.csv"))[, -1]
-zhang <- read.csv(paste0(func, "/results/zhang_probs.csv"))[, -1]
-zhang <- (zhang > 0.5)
+#bk <- read.csv(paste0(func, "/results/bk_in_out.csv"))[, -1]
+#zhang <- read.csv(paste0(func, "/results/zhang_probs.csv"))[, -1]
+#zhang <- (zhang > 0.5)
 monodgp <- (upper > 0.2)
 
 results <- data.frame(matrix(NA, nrow = 4, ncol = d))
@@ -65,3 +68,4 @@ col <- RColorBrewer::brewer.pal(5, "Set2")
 par(mfrow = c(1, 2))
 boxplot(RMSE, col = col, ylab = "RMSE", names = names)
 boxplot(CRPS, col = col, ylab = "CRPS", names = names)
+

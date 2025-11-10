@@ -4,8 +4,8 @@ library(lhs)
 
 ignition <- function(x) {
   r <- sqrt(rowSums(x[, 1:10]^2))
-  t1 <- 200000*pnorm(sqrt(2)*10*(r - 2))
-  y <- log10(r^5*(1+ t1))
+  t <- 200000*pnorm(sqrt(2)*10*(r - 2))
+  y <- log10(r^5*(1 + t))
   return((y - 3.9)/2.5)
 }
 
