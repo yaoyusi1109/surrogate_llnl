@@ -10,11 +10,11 @@ ignition <- function(x) {
 }
 
 d <- 13 # 10 important, 3 dummy
-n <- 400
-np <- 500
+n <- 200
+np <- 1000
 reps <- 50
 
-for (seed in 1:reps) {
+for (seed in 6:10) {
 
   set.seed(seed)
   x <- randomLHS(n, d)
@@ -39,7 +39,7 @@ for (seed in 1:reps) {
 
 #reps <- 50
 #setwd("~/llnl-dgp-git/varselect/ignition/")
-#file <- "results/pred_zhang.csv"
+#file <- "results/zhang_probs.csv"
 #results <- data.frame(seed = 1:reps, x1 = NA, x2 = NA, x3 = NA, x4 = NA, x5 = NA,
 #                     x6 = NA, x7 = NA, x8 = NA, x9 = NA, x10 = NA,
 #                     x11 = NA, x12 = NA, x13 = NA)
