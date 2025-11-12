@@ -7,7 +7,7 @@ n = 200;
 np = 1000;
 reps = 50;
 
-for seed = 1:reps
+for seed = 27:reps
   rng(seed)
   x = lhsdesign(n, d);
   y = ignitionfunc(x);
