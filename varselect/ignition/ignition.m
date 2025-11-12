@@ -51,7 +51,7 @@ for seed = 1:reps
   [dummy, regrFunc, terms] = k.regressionFunction(struct('includeCoefficients', false));
   bk_results = readtable('results/bk_in_out.csv');
   for j = 1:d
-    bk_results{seed, j+1} = num2cell(contains(regrFunc, 'x' + string(j)));
+    bk_results(seed, j+1) = num2cell(contains(regrFunc, 'x' + string(j)));
   end
   writetable(bk_results, 'results/bk_in_out.csv');
   
@@ -61,8 +61,8 @@ for seed = 1:reps
   z = (yp - mu)./s;
   crps = mean(s.*(-1/sqrt(pi) + 2.*normpdf(z) + z.*(2.*normcdf(z)-1)));
   r = readtable('results/pred_bk.csv');
-  r.RMSE{seed} = rmse;
-  r.CRPS{seed} = crps;
+  r.RMSE(seed) = rmse;
+  r.CRPS(seed) = crps;
   writetable(r, 'results/pred_bk.csv');
 
 
