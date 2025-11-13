@@ -14,7 +14,7 @@ n <- 200
 np <- 1000
 reps <- 50
 
-for (seed in 6:10) {
+for (seed in 1:30) {
 
   set.seed(seed)
   x <- randomLHS(n, d)
@@ -23,9 +23,9 @@ for (seed in 6:10) {
   yp <- ignition(xp)
   
   # Fit mono DGP
-  fit <- fit_two_layer(x, y, nmcmc = 5000, monowarp = TRUE, varselect = TRUE,
+  fit <- fit_two_layer(x, y, nmcmc = 10000, monowarp = TRUE, varselect = TRUE,
                        vecchia = TRUE)
-  fit <- trim(fit, 3000, 2)
+  fit <- trim(fit, 8000, 2)
   fit <- predict(fit, xp)
   r <- read.csv("results/pred_monodgp.csv")
   r$RMSE[r$seed == seed] <- rmse(yp, fit$mean)
