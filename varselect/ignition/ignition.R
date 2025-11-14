@@ -14,7 +14,7 @@ n <- 200
 np <- 1000
 reps <- 50
 
-for (seed in 1:30) {
+for (seed in 31:50) {
 
   set.seed(seed)
   x <- randomLHS(n, d)
