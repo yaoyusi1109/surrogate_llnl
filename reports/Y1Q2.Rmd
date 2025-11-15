@@ -1,22 +1,32 @@
 ---
 title: "ACT Progress Report: Year 1 Quarter 2"
-date: "August 15, 2025 - December 15, 2025"
+date: "August 15, 2025 - November 15, 2025"
 author: "Annie Booth"
 bibliography: ref.bib 
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", eval = FALSE)
 ```
 
 ### Abstract
+
+In the second quarter of Year 1, PI Annie Booth (Virginia Tech) continued working collaboratively with Kevin Quinlan and Laura Wendelberger (LLNL) to develop methodology for deep Gaussian process (DGP) surrogates with large input dimensions.  The entire three-long project spans two directives towards this end: variable selection and dimension reduction.  In this quarter, our team continued focusing on the variable selection problem, building upon the progress made in Quarter 1.  Specifically, we developed new statistical methodology involving a novel Bayesian hierarchical modeling structure and warping function that encourages "deselection" of unimportant variables.  The methodological developments solved the modeling limitations encountered in the work during Quarter 1.  Software was developed in the form of an R-package, and new methods were validated on a variety of synthetic benchmarks, showing excellent performance.  PI Booth was not supported financially this quarter, but she has successfully identified a Virginia Tech student to support on this project in Quarter 3.
 
 ### Summary of Objectives
 
 Objective 1: Provide research plans to LLNL and suggestions for each quarters activities to be approved by LLNS.
 
+* At the start of this quarter, PI Booth worked with the LLNL team to decide on the quarter's activities.  The team decided to continue the focus on method development for variable selection with DGPs.  This focus worked out well as the team was able to develop effective methodology/software and test its performance.
+* For next quarter:
+  + PI Booth will work with Kevin to deploy the developed software on our motiviating application.
+  + PI Booth will work with Kevin and Laura to write a paper on the newly developed methods and submit it to a peer-reviewed journal.
+  + PI Booth has identified a Virginia Tech student to begin working on this project in January 2026.  The new student will work closely with PI Booth to start tackling the DGP dimension reduction problem.
+
 Objective 2: Perform methodological development of Bayesian DGP emulator models for variable selection and learning of lower dimensional manifolds.
+
+* The team successfully developed statistical methodology and software for variable selection with DGP surrogates.  Technical details and results are provided below.
 
 ### Publications
 
