@@ -1,0 +1,467 @@
+---
+title: "ACT Progress Report: Year 1 Quarter 2"
+date: "August 15, 2025 - November 15, 2025"
+author: "Annie Booth"
+bibliography: ref.bib 
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+```
+
+### Abstract
+
+In the second quarter of Year 1, PI Annie Booth (Virginia Tech) continued working collaboratively with Kevin Quinlan and Laura Wendelberger (LLNL) to develop methodology for deep Gaussian process (DGP) surrogates with large input dimensions.  The entire three-long project spans two directives towards this end: variable selection and dimension reduction.  In this quarter, our team continued focusing on the variable selection problem, building upon the progress made in Quarter 1.  Specifically, we developed new statistical methodology involving a novel Bayesian hierarchical modeling structure and warping function that encourages "deselection" of unimportant variables.  The methodological developments solved the modeling limitations encountered in the work during Quarter 1.  Software was developed in the form of an R-package, and new methods were validated on a variety of synthetic benchmarks, showing excellent performance.  PI Booth was not supported financially this quarter, but she has successfully identified a Virginia Tech student to support on this project in Quarter 3.
+
+### Summary of Objectives
+
+Objective 1: Provide research plans to LLNL and suggestions for each quarters activities to be approved by LLNS.
+
+* At the start of this quarter, PI Booth worked with the LLNL team to decide on the quarter's activities.  The team decided to continue the focus on method development for variable selection with DGPs.  This focus worked out well as the team was able to develop effective methodology/software and test its performance.
+* For next quarter:
+  + PI Booth will work with Kevin to deploy the developed software on our motiviating application.
+  + PI Booth will work with Kevin and Laura to write a paper on the newly developed methods and submit it to a peer-reviewed journal.
+  + PI Booth has identified a Virginia Tech student to begin working on this project in January 2026.  The new student will work closely with PI Booth to start tackling the DGP dimension reduction problem.
+
+Objective 2: Perform methodological development of Bayesian DGP emulator models for variable selection and learning of lower dimensional manifolds.
+
+* The team successfully developed statistical methodology and software for variable selection with DGP surrogates.  Technical details and results are provided below.
+
+### Publications
+
+There are no publications of this work yet.
+
+******
+
+# Technical Details
+
+```{r}
+library(deepgp)
+library(mvtnorm)
+library(lhs)
+library(interp)
+```
+
+### Our Model
+
+The "standard" DGP, following @sauer2023active, has the following prior:
+
+$$
+\begin{array}{rl}
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w}(W) + g\mathbb{I})\right) \\
+\mathbf{w}_p &\sim\mathrm{GP}\left(0,\; K_{\theta_x^p}(X) \right) \quad p=1,\dots,P
+\end{array}
+\quad\textrm{where}\quad
+W = \begin{bmatrix} \mathbf{w}_1 & \mathbf{w}_2 & \dots & \mathbf{w}_p\end{bmatrix}
+$$
+
+We propose an upgraded monotonically warped DGP with two major updates:
+
+* A scale parameter on latent warpings, which was previously fixed at 1, but will not have a reference prior and be treated in a Bayesian framework.
+* A transformation $T(\mathbf{w}_p)$ which takes each $\mathbf{w}_p$ and converts it to a monotonic function.
+
+Specifically, our "monowarp DGP" prior is now:
+
+$$
+\begin{array}{rl}
+\mathbf{y}&\sim\mathrm{GP}\left(0,\; \tau^2 (K_{\theta_w}(W_\textrm{mono}) + g\mathbb{I})\right) \\
+\mathbf{w}_p &\sim\mathrm{GP}\left(0,\; \tau^2_pK_{\theta_x^p}(X) \right) \quad p=1,\dots,P
+\end{array}
+\quad\textrm{where}\quad
+W_\textrm{mono} = \begin{bmatrix} T(\mathbf{w}_1) & T(\mathbf{w}_2) & \dots & T(\mathbf{w}_p)\end{bmatrix}.
+$$
+
+In our last progress report, we provided the technical details for Bayesian posterior inference regrading $\tau^2_p$.  We also considered fixing $\theta_x^p$ at a known constant, but determined that did not provide enough flexibility.  Now, we turn our focus to the choice of $T(\cdot)$.
+
+### Warping function
+
+While we made a lot of progress in Q1, I was still encountering many issues
+with our original warping function from @barnett2025monotonic.  This semester, we figured out a new (better) way to warp the samples and integrated this implementation into the `deepgp` package.  We propose two different warping options.  First,
+
+
+$$
+T(\mathbf{w}_p)^{(i)} = T(w_{ip}) = \mathrm{cumsum}(\mathrm{abs}(\mathrm{diff}(w_{ip} - w_{i-1,p}))
+$$
+
+This mirrors the original implementation and does NOT encourage flat warpings.  In our software, this warping is triggered when `monowarp = TRUE` but `varselect = FALSE`.
+
+Second,
+
+$$
+T_{vs}(\mathbf{w}_p)^{(i)} = T_{vs}(w_{ip}) = \mathrm{cumsum}(\mathrm{max}(0, \mathrm{diff}(w_{ip} - w_{i-1,p}))
+$$
+
+This transformation encourages flat warpings, which is essential for deselecting unimportant variables.  In our software, this warping is triggered when `monowarp = TRUE` and `varselect = TRUE`.
+
+To visualize these transformations, the following code generates draws from our prior on the latent warping with a fixed scale and varying lengthscale, then shows their monotonically warped counterparts (VS indicates `varselect = TRUE` implementation).
+
+```{r, fig.width = 10, fig.height = 10}
+n <- 10
+r <- 5
+tau2 <- 0.1
+x <- matrix(seq(0, 1, length = 100), ncol = 1)
+dx <- sq_dist(x)
+par(mfcol = c(3, 3), mar = c(4, 4, 4, 1))
+for (theta in c(0.01, 0.1, 1)) {
+  w_orig <- t(rmvnorm(r, sigma = tau2*exp(-dx/theta)))
+  w <- matrix(nrow = nrow(x), ncol = r)
+  wvs <- matrix(nrow = nrow(x), ncol = r)
+  for (i in 1:r) {
+    w[, i] <- c(0, cumsum(abs(diff(w_orig[, i]))))
+    wvs[, i] <- c(0, cumsum(pmax(diff(w_orig[, i]), 0)))
+  }
+  matplot(x, w_orig, type = "l", main = paste0("Orig theta = ", theta))
+  matplot(x, w, type = "l", main = paste0("Warped theta = ", theta))
+  matplot(x, wvs, type = "l", main = paste0("Warped VS theta = ", theta))
+}
+```
+
+To demonstrate the importance of both the scale and lengthscale, the following code does the same but with the lengthscale fixed and the scale varying.
+
+```{r, fig.width = 10, fig.height = 10}
+n <- 10
+r <- 5
+theta <- 0.1
+x <- matrix(seq(0, 1, length = 100), ncol = 1)
+dx <- sq_dist(x)
+par(mfcol = c(3, 3), mar = c(4, 4, 4, 1))
+for (tau2 in c(0.1, 1, 10)) {
+  w_orig <- t(rmvnorm(r, sigma = tau2*exp(-dx/theta)))
+  w <- matrix(nrow = nrow(x), ncol = r)
+  wvs <- matrix(nrow = nrow(x), ncol = r)
+  for (i in 1:r) {
+    w[, i] <- c(0, cumsum(abs(diff(w_orig[, i]))))
+    wvs[, i] <- c(0, cumsum(pmax(diff(w_orig[, i]), 0)))
+  }
+  matplot(x, w_orig, type = "l", main = paste0("Orig tau2 = ", tau2))
+  matplot(x, w, type = "l", main = paste0("Warped tau2 = ", tau2))
+  matplot(x, wvs, type = "l", main = paste0("Warped VS tau2 = ", tau2))
+}
+```
+
+Notice, the lengthscale controls the degree of flatness/wiggliness, while the scale controls the magnitude of the warping.
+
+**Implementation:**
+
+* To keep computations light, I have implemented these transformations on a grid of fixed size `ng = 50`.  Observations are linearly interpolated to/from the grid.  This provides enough granularity without being cumbersome (the size of the grid is user-adjustable).
+* I have also integrated optional Vecchia approximation throughout for faster computations with larger data sizes.
+
+### Results
+
+We considered three synthetic nonstationary functions:
+
+* The G function with 2 important inputs and 2 unimportant inputs
+* The Tray function with 2 important inputs and 3 unimportant inputs
+* The Ignition function with 10 important inputs and 3 unimportant inputs
+
+We compared to:
+
+* Blind kriging (BK) as implemented in the OODACE MATLAB toolbox
+* The fully-Bayesian GP (FBGP) implementation of @zhang2023indicator, when feasible
+* The original DGP implementation from the DGP package (for the smaller problems)
+* The "ideal" DGP with only the important inputs (for the smaller problems)
+
+First, we compare the proportion of times each input was selected as important (out of 50 Monte Carlo repetitions).
+
+```{r}
+for (func in c("g", "tray", "ignition")) {
+
+  if (func == "g") {
+    d <- 4
+    ideal <- c(1, 1, 0, 0)
+  } else if (func == "tray") {
+    d <- 5
+    ideal <- c(1, 1, 0, 0, 0)
+  } else if (func == "ignition") {
+    d <- 13
+    ideal <- c(rep(1, 10), rep(0, 3))
+  }
+
+  reps <- 50
+  upper <- matrix(nrow = reps, ncol = d)
+  for (seed in 1:reps) {
+    wrange <- read.csv(paste0("../varselect/", func, "/results/wrange/seed", seed, ".csv"))
+    upper[seed, ] <- apply(wrange/apply(wrange, 1, max), 2, quantile, p = 0.99)
+  }
+
+  bk <- read.csv(paste0("../varselect/", func, "/results/bk_in_out.csv"))[, -1]
+  if (func != "ignition") {
+    fbgp <- read.csv(paste0("../varselect/", func, "/results/zhang_probs.csv"))[, -1]
+    fbgp <- (fbgp > 0.5)
+  }
+  monodgp <- (upper > 0.15)
+
+  results <- data.frame(matrix(NA, nrow = 4, ncol = d))
+  colnames(results) <- paste0("x", 1:d)
+  rownames(results) <- c("Ideal", "monoDGP", "Blind Kriging", "FBGP")
+  results[1, ] <- ideal
+  results[2, ] <- apply(monodgp, 2, mean)
+  results[3, ] <- apply(bk, 2, mean, na.rm = TRUE)
+  if (func != "ignition") results[4, ] <- apply(fbgp, 2, mean, na.rm = TRUE)
+
+  if (func == "g") {
+    resultsg <- results
+  } else if (func == "tray") {
+    resultstray <- results
+  } else if (func == "ignition") {
+    resultsignition <- results
+  }
+}
+```
+
+
+**G function**
+
+```{r}
+knitr::kable(resultsg)
+```
+
+**Tray function**
+
+```{r}
+knitr::kable(resultstray)
+```
+
+**Ignition function**
+
+```{r}
+knitr::kable(resultsignition)
+```
+
+Second, we compare predictive performance on a hold-out testing set.
+
+```{r, fig.width = 10, fig.height = 4}
+for (func in c("g", "tray", "ignition")) {
+
+  if (func == "g") {
+    d <- 4
+    ideal <- c(1, 1, 0, 0)
+  } else if (func == "tray") {
+    d <- 5
+    ideal <- c(1, 1, 0, 0, 0)
+  } else if (func == "ignition") {
+    d <- 13
+    ideal <- c(rep(1, 10), rep(0, 3))
+  }
+  
+  names <- c("monoDGP", "BK", "FBGP", "DGP-All", "DGP-Ideal")
+  monodgp <- read.csv(paste0("../varselect/", func, "/results/pred_monodgp.csv"))
+  bk <- read.csv(paste0("../varselect/", func, "/results/pred_bk.csv"))
+  RMSE <- cbind(monodgp$RMSE, bk$RMSE)
+  CRPS <- cbind(monodgp$CRPS, bk$CRPS)
+  if (file.exists(paste0("../varselect/", func, "/results/pred_zhang.csv"))) {
+    fbgp <- read.csv(paste0("../varselect/", func, "/results/pred_zhang.csv"))
+    RMSE <- cbind(RMSE, fbgp$RMSE)
+    CRPS <- cbind(CRPS, fbgp$CRPS)
+  } else names <- names[names != "FBGP"]
+  if (file.exists(paste0("../varselect/", func, "/results/pred_dgp_all.csv"))) {
+    dgp_all <- read.csv(paste0("../varselect/", func, "/results/pred_dgp_all.csv"))
+    RMSE <- cbind(RMSE, dgp_all$RMSE)
+    CRPS <- cbind(CRPS, dgp_all$CRPS)
+  } else names <- names[names != "DGP-All"]
+  if (file.exists(paste0("../varselect/", func, "/results/pred_dgp_ideal.csv"))) {
+    dgp_ideal <- read.csv(paste0("../varselect/", func, "/results/pred_dgp_ideal.csv"))
+    RMSE <- cbind(RMSE, dgp_ideal$RMSE)
+    CRPS <- cbind(CRPS, dgp_ideal$CRPS)
+  } else names <- names[names != "DGP-Ideal"]
+
+  col <- RColorBrewer::brewer.pal(5, "Set2")
+  par(mfrow = c(1, 2))
+  boxplot(RMSE, col = col, ylab = "RMSE", names = names, main = func)
+  boxplot(CRPS, col = col, ylab = "CRPS", names = names, main = func)
+}
+```
+
+Our "monoDGP" does well across the board.  It is better able to determine the important variables, and it can provide superior predictions.
+
+### Side note - Can we do higher dimensions?
+
+There is potential to use these warping ideas in higher dimensional spaces.  But we would need to step away from the grid implementation.  And somehow address corners.  Some ideas, incase we revisit this direction later:
+
+* We can do a Delaunay triangulation with the `delaunayn` function in the `geometry` package.
+* For a new location, we can identify the "triangle" that contains it with the `tsearchn` function.
+* Then, how can we get the proper weights?  We can use barycentric coordinates...
+* There is no clear way to extrapolate outside the convex hull.  The only way to do this in higher dimension (while enforcing proper monotonicity) is to warp the predictive locations and the testing locations ALL TOGETHER.
+
+```{r, echo = FALSE, eval = FALSE}
+# Say we have a particular x, w, and wwarp
+# And we wanted to get the monotonic warped value at a new xstar location
+x <- sort(runif(10, 0.1, 0.9))
+
+K <- exp(-sq_dist(x)/theta)
+w <- drop(rmvnorm(1, sigma = K))
+wwarp <- c(0, cumsum(pmax(0, diff(w))))
+
+plot(x, wwarp, type = "b")
+
+xstar <- seq(0, 1, length = 100)
+wstar <- deepgp:::krig(w, sq_dist(x), sq_dist(xstar), sq_dist(xstar, x),
+                   tau2 = 1, theta = theta, g = 1e-8)$mean
+
+wwarp_star <- vector(length = 100)
+for (i in 1:length(xstar)) {
+  w_combo <- c(w[x < xstar[i]], wstar[i])
+  wwarp_star[i] <- sum(abs(diff(w_combo)))
+}
+
+par(mfrow = c(1, 2))
+plot(x, w, type = "b", main = "Original space, kriging map")
+lines(xstar, wstar, col = 2, pch = 17)
+plot(x, wwarp, type = "b", main = "Warped space, linear map")
+lines(xstar, wwarp_star, col = 2, pch = 17)
+
+xnew <- as.matrix(seq(0.1, 0.9, length = 10))
+xgrid <- as.matrix(seq(0, 1, length = 50))
+wgrid <- drop(rmvnorm(1, sigma = exp(-sq_dist(xgrid)/0.1)))
+grid_index <- deepgp:::fo_approx_init(xgrid, xgrid)
+wwarp <- deepgp:::monowarp_ref(xgrid, xgrid, wgrid, grid_index)
+grid_index_new <- deepgp:::fo_approx_init(xgrid, xnew)
+wnew <- deepgp:::monowarp_ref(xnew, xgrid, wgrid, grid_index_new)
+
+plot(xgrid, wwarp, type = "b")
+points(xnew, wnew, col = 2, pch = 17)
+
+x <- as.matrix(sort(runif(20)))
+w <- drop(rmvnorm(1, sigma = exp(-sq_dist(x)/0.1)))
+xnew <- as.matrix(seq(0, 1, length = 10))
+grid_index <- deepgp:::fo_approx_init(x, x)
+wwarp <- deepgp:::monowarp_ref(x, x, w, grid_index)
+grid_index_new <- deepgp:::fo_approx_init(x, xnew)
+wnew <- deepgp:::monowarp_ref(xnew, x, w, grid_index_new)
+
+plot(x, wwarp, type = "b", xlim = c(0, 1))
+points(xnew, wnew, col = 2, pch = 17)
+
+x <- randomLHS(50, 2)
+w <- rmvnorm(1, sigma = exp(-sq_dist(x)/0.1))
+
+# Order by distance from the origin (x min values must be zero)
+origin <- matrix(c(0, 0), nrow = 1)
+d <- drop(sq_dist(origin, x))
+ord <- order(d, decreasing = FALSE)
+xord <- x[ord, ]
+wwarp <- c(0, cumsum(abs(diff(w[ord]))))
+
+par(mfrow = c(2, 2))
+image(interp(x[, 1], x[, 2], w))
+persp(interp(x[, 1], x[, 2], w), theta = 30, r = 30, phi = 30)
+image(interp(xord[, 1], xord[, 2], wwarp))
+persp(interp(xord[, 1], xord[, 2], wwarp), theta = 30, r = 30, phi = 30)
+
+library(geometry)
+
+get_corners <- function(d) {
+  bounds <- rep(list(c(0, 1)), times = d)
+  return(as.matrix(expand.grid(bounds)))
+}
+
+d <- 2
+x <- randomLHS(10, d)
+x <- rbind(x, get_corners(d))
+y <- x[, 1] + x[, 2]
+
+xstar <- matrix(runif(d * 5), ncol = d)
+
+# Triangulation
+tri <- delaunayn(x, options = "Q12")
+
+# Identify container
+containers <- tsearchn(x, tri, xstar)
+
+# 2d implementation from interp package
+if (d == 2) interp::interp(xvertices[, 1], xvertices[, 2], yvertices,
+               xo = xstar[1], yo = xstar[2])$z
+
+# My own way using barycentric coordinates (it matches for d = 2)
+for (i in 1:nrow(xstar)) {
+  xvertices <- x[tri[containers$idx[i], ], ]
+  yvertices <- y[tri[containers$idx[i], ]]
+  cat(sum(cart2bary(xvertices, xstar[i, , drop = FALSE]) * yvertices), "\n")
+}
+for (i in 1:nrow(xstar)) {
+  yvertices <- y[tri[containers$idx[i], ]]
+  cat(sum(containers$p[i, ] * yvertices), "\n")
+}
+
+# All together
+yvertices <- matrix(y[tri[containers$idx, ]], ncol = d+1, byrow = FALSE)
+rowSums(containers$p * yvertices)
+
+xstar[1] + xstar[2]
+
+ord_from_origin <- function(x) {
+  if (!is.matrix(x)) x <- as.matrix(x)
+  d <- ncol(x)
+  origin <- matrix(rep(0, times = d), nrow = 1)
+  dist_from_origin <- drop(sq_dist(origin, x))
+  return(order(dist_from_origin, decreasing = FALSE))
+}
+
+monotransform <- function(w, ord) {
+  if (!is.matrix(w)) w <- as.matrix(w)
+  D <- ncol(w)
+  wwarp <- matrix(nrow = nrow(w), ncol = D)
+  for (i in 1:D) {
+    if (is.matrix(ord)) {
+      ord_to_use <- ord[, i] # ordering based only on dimension i
+    } else ord_to_use <- ord # single ordering for all inputs together
+    wwarp_ordered <- c(0, cumsum(abs(diff(w[ord_to_use, i]))))
+    wwarp[, i] <- wwarp_ordered[order(ord_to_use)]
+  }
+  return(wwarp)
+}
+
+### Test monotransform "together", 2 nodes of W
+d <- 2
+x <- randomLHS(50, d)
+bounds <- rep(list(c(0, 1), times = d))
+corners <- as.matrix(expand.grid(bounds))
+x <- rbind(x, corners)
+ord <- ord_from_origin(x)
+w_orig <- t(rmvnorm(2, sigma = exp(-sq_dist(x)/0.1)))
+w <- monotransform(w_orig, ord)
+
+# monotonic across all dimensions
+par(mfrow = c(2, 2))
+for (i in 1:d) {
+  image(interp(x[, 1], x[, 2], w_orig[, i]))
+  image(interp(x[, 1], x[, 2], w[, i]))
+}
+
+# not guaranteed monotonic across 1d projections
+for (i in 1:d) {
+  plot(x[, 1], w_orig[, i])
+  plot(x[, 2], w_orig[, i])
+  plot(x[, 1], w[, i])
+  plot(x[, 2], w[, i])
+}
+
+### Test monotransform "axis-aligned"
+d <- 2
+x <- randomLHS(50, d)
+x <- rbind(x, rep(0, times = d), rep(1, times = d))
+ord <- matrix(nrow = nrow(x), ncol = d)
+for (i in 1:d) ord[, i] <- ord_from_origin(x[, i])
+w_orig <- t(rmvnorm(2, sigma = exp(-sq_dist(x)/0.1)))
+w <- monotransform(w, ord)
+
+# not monotonic across all dimensions
+par(mfrow = c(2, 2))
+for (i in 1:d) {
+  image(interp(x[, 1], x[, 2], w_orig[, i]))
+  image(interp(x[, 1], x[, 2], w[, i]))
+}
+
+# but guaranteed monotonic across 1d projections
+for (i in 1:d) {
+  plot(x[, 1], w_orig[, i])
+  plot(x[, 2], w_orig[, i])
+  plot(x[, 1], w[, i])
+  plot(x[, 2], w[, i])
+}
+```
+
+******
+
+# References

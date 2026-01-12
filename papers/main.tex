@@ -1,0 +1,106 @@
+\pdfminorversion=4
+\documentclass[11pt]{article}
+\usepackage{hyperref}
+\usepackage{amsmath, amsfonts, amssymb, mathrsfs}
+\usepackage{dcolumn}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{filemod}
+\usepackage{natbib}
+\usepackage[ruled, vlined]{algorithm2e}
+\usepackage{floatrow}
+\usepackage{setspace}
+\usepackage{verbatim}
+\usepackage{graphicx}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue, 
+    urlcolor=black,
+    citecolor=blue, 
+    }
+
+\oddsidemargin=0.25in
+\evensidemargin=0.25in
+\textwidth=7in
+\textheight=8.75in
+\topmargin=-.5in
+\addtolength{\oddsidemargin}{-.5in}
+\addtolength{\evensidemargin}{-.5in}
+\footskip=0.5in
+\doublespacing
+
+\title{\vspace{-0.3cm} Variable Selection with Deep Gaussian Process Surrogates}
+\author{Annie S. Booth\thanks{Corresponding author: Department of Statistics, 
+	Virginia Tech, {\tt annie\_booth@vt.edu}} 
+	\and Kevin Quinlan\thanks{Lawrence Livermore National Laboratory} 
+	\and Laura Wendelberger\footnotemark[2]}
+\date{\today}
+
+\begin{document}
+
+\vspace{-0.5cm}
+\maketitle
+
+\singlespacing
+
+\vspace{-1.5cm}
+\begin{abstract} 
+TODO
+\end{abstract}
+
+\noindent \textbf{Keywords:} TODO
+
+\doublespacing
+
+\section{Introduction}\label{sec:intro}
+
+Motivate - variable selection
+
+Introduce DGPs
+
+Competing methods: blind kriging and Zhang paper, paper that Jon sent?
+
+\section{Review: Deep Gaussian processes}
+
+Review classic DGPs
+
+\section{Method}
+
+Upgrades to monotonic warping functionality
+Upgrades to allow $\tau^2_w$ to VARY (Bayesian framework with noninformative prior)
+
+\subsection{The decision rule}
+
+Based on the range of W
+
+\section{Synthetic Benchmarks}
+
+G function with 2 important, 2 not important
+
+Tray function with 2 important, 3 not important
+
+Larger example???
+
+\section{Motivating Example}
+
+10 dimensions?
+
+\section{Discussion}
+
+\subsection*{Acknowledgements}
+
+Support from Lawrence Livermore National Laboratory
+
+\singlespacing
+\bibliographystyle{../jasa}
+\bibliography{main}
+
+\newpage
+\setcounter{page}{1}
+\begin{center}
+{\large\bf SUPPLEMENTARY MATERIAL}
+\end{center}
+\appendix
+
+\end{document}
