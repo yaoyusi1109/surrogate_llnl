@@ -1,0 +1,17 @@
+# R specific
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Mac specific
+.DS_Store
+
+# TeX specific
+*.log
+*.aux
+
+# Generated files
+*.pdf
+*.html
+*_files/

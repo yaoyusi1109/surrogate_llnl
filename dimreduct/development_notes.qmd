@@ -1,0 +1,357 @@
+---
+title: "Development Notes: Spring 2026"
+author: "Yusi Yao"
+date: "Spring 2026"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    theme: cosmo
+    code-fold: true
+editor: visual
+---
+
+# Project Overview
+
+**Goal**: Developing Deep Gaussian Process methods for Variable Selection and Dimension Reduction in surrogate modeling. **Repository**: `surrogate_llnl`
+
+------------------------------------------------------------------------
+
+# Timeline
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 8
+
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+
+# Generate Dates
+start_date <- as.Date("2026-01-01")
+end_date <- as.Date("2026-05-31")
+dates <- seq(start_date, end_date, by = "day")
+
+# Identify Meeting Dates (Tuesdays and Thursday between Jan 13 and May 7)
+meeting_start <- as.Date("2026-01-13")
+meeting_end <- as.Date("2026-05-07")
+is_meeting_range <- dates >= meeting_start & dates <= meeting_end
+is_tue_thu <- wday(dates) %in% c(3, 5) # 3=Tue, 5=Thu
+meeting_dates <- dates[is_meeting_range & is_tue_thu]
+
+# Create Calendar Data Frame
+cal_data <- data.frame(Date = dates) %>%
+  mutate(
+    Month = factor(format(Date, "%B"), levels = month.name),
+    Day = day(Date),
+    Wday = wday(Date, label = TRUE, abbr = TRUE),
+    WeekOfYear = isoweek(Date),
+    Year = year(Date)
+  )
+
+# Let's use a simpler "week index" for plotting y-axis
+cal_data <- cal_data %>%
+  group_by(Month) %>%
+  mutate(WeekIndex = as.numeric(format(Date, "%U"))) %>%
+  mutate(WeekIndex = WeekIndex - min(WeekIndex))
+
+# Add Event Types
+cal_data$Event <- NA
+cal_data$Event[cal_data$Date %in% meeting_dates] <- "Meeting"
+cal_data$Event[cal_data$Date == as.Date("2026-01-15")] <- "Kick-off"
+cal_data$Event[cal_data$Date == as.Date("2026-05-07")] <- "Wrap-up"
+
+# Plot
+ggplot(cal_data %>% filter(Month %in% month.name[1:5]), aes(x = Wday, y = -WeekIndex, fill = Event)) +
+  geom_tile(color = "white", size = 0.5) +
+  geom_text(aes(label = Day), size = 3) +
+  facet_wrap(~Month, ncol = 3, scales = "free_x") + # Free x not needed but keeps it clean
+  scale_fill_manual(values = c("Meeting" = "#a6cee3", "Kick-off" = "#b2df8a", "Wrap-up" = "#fb9a99"), 
+                    na.value = "grey95", 
+                    name = "Schedule") +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+------------------------------------------------------------------------
+
+# January 2026
+
+## Week 1
+
+### Tuesday, Jan 13
+
+-   **Discussion**:
+    -   **Git/Repo**: Resolved branching issues. Old files moved to `annies_old_work`. Active work should be in `dimreduct/yusi_demo/`. Pushing frequently constitutes "showing work".
+    -   **Expectations**: "Reading" must be accompanied by "Doing". Re-implementing book examples with different data/dimensions to prove understanding.
+    -   **Documentation**: A detailed Project Journal is required (this document) to track daily progress and report to funding agencies.
+    -   **Jan 22 Prep**: Need a 5-10 minute visual/technical update for the meeting with Laura and Kevin.
+    -   **Technical**: Discussed Deep GP concepts (warping/stretching inputs). Explained Elliptical Slice Sampling (ESS) as sampling functions.
+-   **Action Items**:
+    -   [ ] **Git**: Push `simple_sum.R` and other study codes.
+    -   [ ] **Study**:
+        -   **Deep GP Chapter 5**: Implement manual Kriging equations (mean/var) with new/higher-dimensional data.
+        -   **LHS**: Read section on Latin Hypercube Sampling (LHS) in textbook.
+    -   [ ] **Code - `simple_sum.R` (The "Bake-off")**:
+        -   Generalize function to `d` dimensions.
+        -   Models to compare: Stationary GP, DGP (1 layer), DGP (2 layers).
+        -   **Settings**: Small sample size ($n=10$ or $20$).
+        -   **Repetition**: Repeat 50 times with different random seeds.
+        -   **Metrics**: Calculate **RMSE** and **CRPS** on test set ($n_p = 500$ or similar).
+        -   **Output**: Save results to a `.csv` file and generate boxplots comparing models.
+    -   [ ] **Code - MSS**: Complete the `ESS demo` template (fill in the logic in the provided R script).
+
+### Thursday, Jan 15
+
+-   **Agenda**: Kick-off meeting. Discuss semester goals.
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 2
+
+### Tuesday, Jan 20
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Jan 22
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 3
+
+### Tuesday, Jan 27
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Jan 29
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+------------------------------------------------------------------------
+
+# February 2026
+
+## Week 4
+
+### Tuesday, Feb 03
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Feb 05
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 5
+
+### Tuesday, Feb 10
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Feb 12
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 6
+
+### Tuesday, Feb 17
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Feb 19
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 7
+
+### Tuesday, Feb 24
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Feb 26
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+------------------------------------------------------------------------
+
+# March 2026
+
+## Week 8
+
+### Tuesday, Mar 03
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Mar 05
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 9
+
+### Tuesday, Mar 10
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Mar 12
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 10 (Spring Break?)
+
+### Tuesday, Mar 17
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Mar 19
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 11
+
+### Tuesday, Mar 24
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Mar 26
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 12
+
+### Tuesday, Mar 31
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+------------------------------------------------------------------------
+
+# April 2026
+
+### Thursday, Apr 02
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 13
+
+### Tuesday, Apr 07
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Apr 09
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 14
+
+### Tuesday, Apr 14
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Apr 16
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 15
+
+### Tuesday, Apr 21
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Apr 23
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+## Week 16
+
+### Tuesday, Apr 28
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, Apr 30
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
+
+------------------------------------------------------------------------
+
+# May 2026 (Finals)
+
+## Week 17
+
+### Tuesday, May 05
+
+-   **Agenda**: End of semester wrap-up.
+-   **Discussion**:
+-   **Action Items**:
+
+### Thursday, May 07
+
+-   **Agenda**:
+-   **Discussion**:
+-   **Action Items**:
