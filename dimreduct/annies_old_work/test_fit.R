@@ -87,16 +87,16 @@ dgp_cheat_crps <- round(crps(ytest, dgp_cheat$mean, dgp_cheat$s2), 3)
 #                   dgp2mean = dgp2$mean,
 #                   dgp2s2 = dgp2$s2)
 pred <- read.csv("pred.csv")
-pred$dgpcheatmean <- dgp_cheat$mean
-pred$dgpcheats2 <- dgp_cheat$s2
-write.csv(pred, "pred.csv", row.names = FALSE)
+#pred$dgpcheatmean <- dgp_cheat$mean
+#pred$dgpcheats2 <- dgp_cheat$s2
+#write.csv(pred, "pred.csv", row.names = FALSE)
 
 #results <- data.frame(model = c("gp", "gpsep", "dgp8", "dgp4", "dgp2"),
 #                      rmse = c(gp_rmse, gpsep_rmse, dgp8_rmse, dgp4_rmse, dgp2_rmse),
 #                      crps = c(gp_crps, gpsep_crps, dgp8_crps, dgp4_crps, dgp2_crps))
 results <- read.csv("results.csv")
-results <- rbind(results, c("dgpcheat", dgp_cheat_rmse, dgp_cheat_crps))
-write.csv(results, "results.csv", row.names = FALSE)
+#results <- rbind(results, c("dgpcheat", dgp_cheat_rmse, dgp_cheat_crps))
+#write.csv(results, "results.csv", row.names = FALSE)
 
 par(mfrow = c(2, 3))
 plot(ytest, pred$gpmean, main = "Isotropic GP", xlab = "Actual", ylab = "Predicted")
