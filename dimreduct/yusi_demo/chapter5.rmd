@@ -1,73 +1,192 @@
-Location invariant zero-mean GP modeling is the default in computer surrogate modeling and (ML) literatures.
-```{r}
-n <- 100
-X <- matrix(seq(0, 10, length=n), ncol=1)
-library(plgp)
-D <- distance(X) # pairwise squared Euclidean distances 
-```
-```{r}
-eps <- sqrt(.Machine$double.eps) 
-Sigma <- exp(-D) + diag(eps, n) 
-library(mvtnorm)
-Y <- rmvnorm(1, sigma=Sigma)
-plot(X, Y, type="l")
-c(exp(-1^2), exp(-4^2))
-Y <- rmvnorm(3, sigma=Sigma)
-matplot(X, t(Y), type="l", ylab="Y")
-```
+## Takeaways from Chapter 5: Gaussian Process Regression
 
-simple 1d GP
-```{r}
-n <- 8
-X <- matrix(seq(0, 2*pi, length=n), ncol=1)
-y <- sin(X)
-D <- distance(X) 
-Sigma <- exp(-D) + diag(eps, ncol(D))
+Based on [Chapter 5 of Surrogates](https://bookdown.org/rbg/surrogates/chap5.html):
+
+1.  **Gaussian Process (GP) Definition**: A GP is a collection of random variables, any finite number of which have a joint multivariate normal distribution. It is determined by its mean function $\mu(x)$ and covariance function $\Sigma(x, x')$.
+2.  **Zero-Mean Assumption**: Location invariant zero-mean GP modeling is the default in computer surrogate modeling. Any mean trend is often subtracted or modeled separately.
+3.  **Covariance Kernels**: The "action" is in the covariance. A common choice is the inverse exponentiated squared Euclidean distance (Gaussian kernel):
+    $$ \Sigma(x, x') = \tau^2 \exp \left\{ - \frac{||x - x'||^2}{\theta} \right\} $$
+    where $\tau^2$ is the scale/amplitude and $\theta$ is the lengthscale (controlling "wiggliness").
+4.  **Nugget Effect**: To handle noise or numerical stability, a "nugget" parameter $g$ is added to the diagonal of the covariance matrix:
+    $$ \Sigma_n = \tau^2 (C_n + gI_n) $$
+    This allows the model to separate signal from noise (smoothing instead of interpolation).
+5.  **Prediction (Kriging)**: Predictions at new locations $X$ given training data $X_n, Y_n$ follow conditional multivariate normal equations. The predictive mean is a linear predictor of the observations (BLUP).
+6.  **Hyperparameter Estimation**: Parameters like $\tau^2, \theta, g$ are typically estimated via Maximum Likelihood Estimation (MLE) or Bayesian methods.
+
+## Example: Noisy 1d Sinusoid (with Nugget estimation)
+
+This example extends the simple 1d GP to include noise and estimates the nugget parameter $g$.
+
+```{r noisy_1d}
+library(plgp)
+library(mvtnorm)
+
+# Data generation with noise
+n_noisy <- 16 # Doubles the previous example size for better noise handling
+X_noisy <- matrix(seq(0, 2*pi, length=n_noisy/2), ncol=1)
+X_noisy <- rbind(X_noisy, X_noisy) # Replicates
+y_noisy <- 5*sin(X_noisy) + rnorm(n_noisy, sd=1)
+
+D_noisy <- distance(X_noisy) # pairwise squared Euclidean distances
+
+# Negative Log-Likelihood function for Nugget (g)
+nlg <- function(g, D, Y) {
+  n <- length(Y)
+  K <- exp(-D) + diag(g, n)
+  Ki <- solve(K)
+  ldetK <- determinant(K, logarithm=TRUE)$modulus
+  ll <- - (n/2)*log(t(Y) %*% Ki %*% Y) - (1/2)*ldetK
+  return(-ll)
+}
+
+# Optimize for g
+g_hat <- optimize(nlg, interval=c(sqrt(.Machine$double.eps), var(y_noisy)), D=D_noisy, Y=y_noisy)$minimum
+print(paste("Estimated nugget g:", g_hat))
+
+# Re-calculate quantities with estimated g
+K <- exp(-D_noisy) + diag(g_hat, n_noisy)
+Ki <- solve(K)
+tau2hat <- drop(t(y_noisy) %*% Ki %*% y_noisy / n_noisy)
+
+# Prediction
 XX <- matrix(seq(-0.5, 2*pi + 0.5, length=100), ncol=1)
 DXX <- distance(XX)
-SXX <- exp(-DXX) + diag(eps, ncol(DXX))
+DX <- distance(XX, X_noisy)
 
-DX <- distance(XX, X)
-SX <- exp(-DX) 
+KX <- exp(-DX)
+KXX <- exp(-DXX) + diag(g_hat, nrow(DXX)) # Nugget on diagonal for predictive var
 
-Si <- solve(Sigma)
-mup <- SX %*% Si %*% y
-Sigmap <- SXX - SX %*% Si %*% t(SX)
+mup <- KX %*% Ki %*% y_noisy
+Sigmap <- tau2hat * (KXX - KX %*% Ki %*% t(KX)) # Predictive Covariance
 
-YY <- rmvnorm(100, mup, Sigmap)
-
+# Quantiles
 q1 <- mup + qnorm(0.05, 0, sqrt(diag(Sigmap)))
 q2 <- mup + qnorm(0.95, 0, sqrt(diag(Sigmap)))
 
-matplot(XX, t(YY), type="l", col="gray", lty=1, xlab="x", ylab="y")
-points(X, y, pch=20, cex=2)
-lines(XX, sin(XX), col="blue")
+# Plotting
+# "Sigma.int" subtracts nugget for "clean" signal visualization (optional 'trick')
+Sigma.int <- tau2hat * (exp(-DXX) + diag(sqrt(.Machine$double.eps), nrow(DXX)) - KX %*% Ki %*% t(KX))
+YY_plot <- rmvnorm(100, mup, Sigma.int)
+
+matplot(XX, t(YY_plot), type="l", lty=1, col="gray", xlab="x", ylab="y", main="Noisy GP Fit")
+points(X_noisy, y_noisy, pch=20, cex=1)
 lines(XX, mup, lwd=2)
+lines(XX, 5*sin(XX), col="blue") # True function
 lines(XX, q1, lwd=2, lty=2, col=2)
 lines(XX, q2, lwd=2, lty=2, col=2)
 ```
 
+## Using Libraries: `laGP`
 
-2d GP
-```{r}
-nx <- 20
-x <- seq(0, 2, length=nx)
-X <- expand.grid(x, x) # 20x20
+Instead of "cutting-and-pasting" matrix algebra, libraries like `laGP` provide optimized implementations (often in C).
 
-D <- distance(X)
-Sigma <- exp(-D) + diag(eps, nrow(X))
+```{r laGP_example}
+library(laGP)
 
-# random MVN
-Y <- rmvnorm(2, sigma=Sigma)
+# Setup toy data (2D Friedman function example subset)
+# Using the noisy 1d data from above for simplicity in this demo
+X_laGP <- X_noisy
+y_laGP <- y_noisy
 
-par(mfrow=c(1,2)) 
-persp(x, x, matrix(Y[1,], ncol=nx), theta=-30, phi=30, xlab="x1", 
-  ylab="x2", zlab="y")
-persp(x, x, matrix(Y[2,], ncol=nx), theta=-30, phi=30, xlab="x1", 
-  ylab="x2", zlab="y")
+# Initialization
+# newGPsep for separable (anisotropic) GP, newGP for isotropic
+# Here we use 1D so they are similar, but laGP separates lengthscale d and nugget g
+gpi <- newGP(X_laGP, y_laGP, d=0.1, g=0.1*var(y_laGP), dK=TRUE)
+
+# MLE estimation
+# mleGP searches for optimal parameters
+mle <- mleGP(gpi, tmin=sqrt(.Machine$double.eps), tmax=10)
+print(mle$theta) # Estimated d
+
+
+# Prediction
+p <- predGP(gpi, XX, lite=TRUE) # lite=TRUE returns mean and var (s2)
+
+# Cleanup
+deleteGP(gpi)
+
+# Visualizing laGP result
+plot(X_laGP, y_laGP, pch=20, main="laGP Prediction")
+lines(XX, p$mean, lwd=2, col="purple")
+lines(XX, p$mean + 1.96*sqrt(p$s2), lty=2, col="purple")
+lines(XX, p$mean - 1.96*sqrt(p$s2), lty=2, col="purple")
 ```
 
-```{r}
+# Detailed Reference Section (Memo)
 
+## 1. Mathematical Formulation
+
+### Covariance Kernels
+The Gaussian (Squared Exponential) kernel is the standard choice:
+
+**Isotropic (Scalar $\theta$):**
+$$ K(x, x') = \exp \left\{ - \frac{||x - x'||^2}{\theta} \right\} + g\delta_{x,x'} $$
+
+**Separable/Anisotropic (Vector $\theta$):**
+Crucial for high-dimensional inputs where sensitivity varies by dimension.
+$$ K(x, x') = \exp \left\{ - \sum_{k=1}^m \frac{(x_k - x'_k)^2}{\theta_k} \right\} + g\delta_{x,x'} $$
+
+### Negative Log-Likelihood (Concentrated)
+For maximizing hyperparameters given data $D_n = \{X_n, Y_n\}$:
+$$ \ell(g, \theta) = c - \frac{n}{2} \log(Y_n^\top K_n^{-1} Y_n) - \frac{1}{2} \log |K_n| $$
+*Note: This concentrates out the scale parameter $\tau^2$, allowing optimization of only $\theta$ and $g$.*
+
+## 2. Algorithm 5.1: GP Regression Steps
+
+1.  **Define Kernel**: Choose correlation structure $K(\cdot, \cdot)$ (e.g., Gaussian, Matérn) with hyperparameters $\theta$ (lengthscale) and $g$ (nugget).
+2.  **Likelihood**: Formulate the concentrated log-likelihood $\ell(\theta, g)$.
+3.  **Optimize**: Use a numerical optimizer (e.g., `optim` with `L-BFGS-B`) to find Maximum Likelihood Estimates (MLE) $\hat{\theta}, \hat{g}$.
+    *   *Tip*: Using gradients $\nabla \ell$ significantly speeds up convergence.
+4.  **Predict**:
+    *   Compute covariance matrices utilizing $\hat{\theta}, \hat{g}$:
+        *   $K$: Training-Training covariance (with nugget).
+        *   $K(X, \cdot)$: Testing-Training covariance (no nugget).
+        *   $K(X, X)$: Testing-Testing covariance (with nugget for predictive uncertainty).
+    *   Solve linear system $K^{-1}Y$ (often using Cholesky decomposition for stability).
+    *   Apply conditional mean/variance equations:
+        $$ \mu(X) = K(X, X_n) K_n^{-1} Y_n $$
+        $$ \Sigma(X) = \tau^2 [ K(X, X) - K(X, X_n) K_n^{-1} K(X_n, X) ] $$
+
+## 3. High-Dimensional Modeling with `laGP`
+
+Standard GPs scale poorly ($O(N^3)$). The `laGP` library addresses this via:
+*   **C Implementation**: Optimized linear algebra.
+*   **Separable Kernels**: `newGPsep` allows optimizing unique $\theta_k$ for each input dimension.
+*   **Local Approximation (Chapter 9)**: For massive datasets, `laGP` can fit local GPs to subsets of data (neighborhoods) rather than the fill dataset, enabling scaling.
+
+**Code Pattern for Separable GP in `laGP`:**
+```r
+library(laGP)
+# 1. Initialize (C-side object allocation)
+gpi <- newGPsep(X, y, d=0.1, g=0.1*var(y), dK=TRUE)
+
+# 2. MLE Optimization
+mle <- mleGPsep(gpi, param="both", tmin=c(eps, eps), tmax=c(10, var(y)))
+
+# 3. Predict
+p <- predGPsep(gpi, XX)
+
+# 4. Cleanup (Crucial!)
+deleteGPsep(gpi)
 ```
+
+## 4. Limits of Stationarity (Motivation for Deep GPs)
+Standard GPs assume **Stationarity**: the covariance depends only on distance $x - x'$.
+*   **Problem**: If a function is wiggly in one region and flat in another, a stationary GP struggles. It will either:
+    *   Over-smooth the wiggly part (large $\theta$).
+    *   Over-fit noise in the flat part (small $\theta$).
+*   **Solution**: Non-stationary models.
+    *   *Treed GPs*: Partition space and fit separate GPs.
+    *   *Deep GPs*: Composition of GPs to learn complex mappings (warping the input space).
+
+## 5. Comparison: GP vs Others
+*   **GP vs Splines**: GPs generalize better in higher dimensions ($>2-3D$) where tensor-product splines explode in complexity.
+*   **GP vs MARS**: GPs typically provide lower RMSE but are computationally heavier ($O(N^3)$ vs $O(N)$ or $O(N^2)$). GPs provide "honest" uncertainty quantification (UQ).
+
+## 6. Definitions for Future Methods
+*   **Isotropic**: Correlation decays at same rate in all directions.
+*   **Anisotropic/Separable**: Correlation decay rates ($\theta_k$) differ per dimension.
+*   **Nugget ($g$)**: Represents measurement error or micro-scale variability. Effectively regularizes the matrix inversion.
+
+
 
